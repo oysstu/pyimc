@@ -1,7 +1,7 @@
 import netifaces
 
 
-def get_interfaces():
+def get_interfaces(ignore_local=True):
     """
     Retrieves the address of all external interfaces (lo 127.0.0.1 ignored)
     :return: List of tuples (interface, addr)
@@ -9,16 +9,16 @@ def get_interfaces():
     interfaces = netifaces.interfaces()
     if_ext = []
     for i in interfaces:
-        if i == 'lo':
+        if i == 'lo' and ignore_local:
             continue
         iface = netifaces.ifaddresses(i).get(netifaces.AF_INET)
         if iface:
             for j in iface:
-                if_ext.append((i, j['addr']))
+                if_ext.append((i, j['addr'], j['netmask']))
 
     return if_ext
 
 
 if __name__ == '__main__':
-    i = get_interfaces()
+    i = get_interfaces(ignore_local=False)
     print(i)
