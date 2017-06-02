@@ -1,5 +1,4 @@
-import socket, struct, asyncio
-from warnings import warn
+import socket, struct, asyncio, logging
 import pyimc
 from pyimc.common import multicast_ip
 
@@ -53,6 +52,7 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
             sock = get_imc_socket(sock)
             self.instance._port_imc = sock.getsockname()[1]
 
+
     def datagram_received(self, data, addr):
         self.parser.reset()
         p = self.parser.parse(data)
@@ -70,14 +70,14 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
             except KeyError:
                 pass
         else:
-            warn('Received IMC message that was not a subclass of Message c')
+            logging.warning('Received IMC message that was not a subclass of pyimc.Message')
 
     def error_received(self, exc):
-        print('Error received:', exc)
+        logging.error('Error received: {}'.format(exc))
 
     def connection_lost(self, exc):
         # TODO: Reestablish connection?
-        print("Socket closed")
+        logging.debug('Lost connection {}'.format(exc))
 
 
 def get_multicast_socket(sock=None):
@@ -90,7 +90,7 @@ def get_multicast_socket(sock=None):
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton('0.0.0.0'))
 
     # Enable multicast, TTL should be <32 (local network)
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 5)
 
     # Allow reuse of addresses
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
