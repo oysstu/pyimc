@@ -1,7 +1,8 @@
 from urllib.parse import urlparse
+import ipaddress, logging
 
-import pyimc
 from pyimc.udp import IMCSenderUDP
+from pyimc.network_utils import get_interfaces
 
 
 class IMCService:
@@ -60,10 +61,16 @@ class IMCNode:
         :return: 
         """
         # TODO: Verify that UDP service exists, add TCP
-        imc_service = self.services['imc+udp'][0]  # TODO: How to select interface if multiple imc services announced?
-        node_ip, node_port = imc_service.ip, imc_service.port
-        with IMCSenderUDP(node_ip) as s:
-            s.send(message=msg, port=node_port)
+        imcudp_services = self.services['imc+udp']  # TODO: How to select interface if multiple imc services announced?
+        if not imcudp_services:
+            logging.error('{} does not expose an imc+udp service'.format(self))
+            return
+
+        # TODO: Try to determine which service to use
+        svc_udp = imcudp_services[0]
+
+        with IMCSenderUDP(svc_udp.ip) as s:
+            s.send(message=msg, port=svc_udp.port)
 
     def __str__(self):
         return 'IMCNode(0x{:X}, {})'.format(self.announce.src, self.announce.sys_name)
