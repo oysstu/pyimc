@@ -1,5 +1,4 @@
 import socket, logging, time
-from warnings import warn
 from operator import itemgetter
 from typing import Dict, Tuple, Union
 
@@ -94,7 +93,7 @@ class ActorBase(IMCBase):
             # If the key is new, check for duplicate names/imc addresses
             key_imcadr = [x for x in self.nodes.keys() if x[0] == key[0] or x[1] == key[1]]
             if key_imcadr:
-                warn('Multiple nodes are announcing the same IMC address or name: {} and {}'.format(key, key_imcadr))
+                logging.warning('Multiple nodes are announcing the same IMC address or name: {} and {}'.format(key, key_imcadr))
 
             # New node
             self.nodes[key] = IMCNode(msg)
@@ -102,6 +101,7 @@ class ActorBase(IMCBase):
         if not self.nodes[key].entities:
             q_ent = pyimc.EntityList()
             q_ent.op = pyimc.EntityList.OP_QUERY
+            #q_ent.dst_ent = self.nodes[key].announce.src_ent
             self.send(key, q_ent)
 
     @Subscribe(pyimc.EntityList)
@@ -118,6 +118,8 @@ class ActorBase(IMCBase):
                 ent_lst.list = ';'.join('{}={}'.format(k, v) for k, v in ent_lst_sorted)
                 self.send(node, ent_lst)
         except (AmbiguousKeyError, KeyError):
+            errstr = 'receiving' if msg.op == pyimc.EntityList.OP_REPORT else 'sending'
+            logging.debug('Unable to resolve node when ' + errstr + ' EntityList')
             pass
 
     @Subscribe(pyimc.Heartbeat)
@@ -205,7 +207,7 @@ if __name__ == '__main__':
             super().__init__()
 
     # Run actor
-    x = ActorChild()
-    x.heartbeat.append('lauv-simulator-9')
+    x = ActorBase()
+    x.heartbeat.append('lauv-simulator-1')
     x.run()
 
