@@ -11,10 +11,6 @@ class IMCSenderUDP:
     def __enter__(self):
         # Set up socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        # Enable multicast, TTL should be <32 (local network)
-        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 5)
-        # Allow reuse of addresses
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
         if self.local_port:
             # Bind the socket to a local interface
