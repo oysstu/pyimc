@@ -1,0 +1,14 @@
+# Core messages
+EntityState
+QueryEntityState
+EntityInfo
+QueryEntityInfo
+EntityList
+EntityActivationState
+QueryEntityActivationState
+MsgList
+
+# Networking
+Heartbeat
+Announce
+AnnounceService
