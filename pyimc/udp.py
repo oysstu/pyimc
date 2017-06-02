@@ -35,13 +35,23 @@ class IMCSenderUDP:
 
 
 class IMCProtocolUDP(asyncio.DatagramProtocol):
-    def __init__(self, instance):
+    def __init__(self, instance, is_multicast=False):
         self.transport = None
         self.parser = pyimc.Parser()
         self.instance = instance
+        self.is_multicast = is_multicast
 
     def connection_made(self, transport):
         self.transport = transport
+        sock = self.transport.get_extra_info('socket')
+
+        # Set the selected port in the IMCBase instance
+        if self.is_multicast:
+            sock = get_multicast_socket(sock)
+            self.instance._port_mc = sock.getsockname()[1]
+        else:
+            sock = get_imc_socket(sock)
+            self.instance._port_imc = sock.getsockname()[1]
 
     def datagram_received(self, data, addr):
         self.parser.reset()
@@ -70,8 +80,10 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
         print("Socket closed")
 
 
-def get_multicast_socket():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def get_multicast_socket(sock=None):
+    if not sock:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
     sock.settimeout(0.001)
 
     # set multicast interface to any local interface
@@ -108,8 +120,10 @@ def get_multicast_socket():
     return sock
 
 
-def get_imc_socket():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def get_imc_socket(sock=None):
+    if not sock:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
     sock.settimeout(0.001)
 
     port = None

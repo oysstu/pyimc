@@ -3,7 +3,7 @@ This file declares the decorators which provides a simple API
 for subscribing to certain messages or perform periodic tasks through the same event loop.
 """
 
-import asyncio, sys, types
+import asyncio, sys, types, socket
 from contextlib import suppress
 from typing import Dict, List, Tuple
 
@@ -94,20 +94,12 @@ class IMCBase:
 
     def add_subscription(self):
         # Add datagram endpoint for multicast announce
-        sock_mc = get_multicast_socket()
-        self._port_mc = sock_mc.getsockname()[1]
-        multicast_listener = self._loop.create_datagram_endpoint(
-            lambda: IMCProtocolUDP(self),
-            sock=sock_mc
-        )
+        multicast_listener = self._loop.create_datagram_endpoint(lambda: IMCProtocolUDP(self, is_multicast=True),
+                                                                 family=socket.AF_INET)
 
         # Add datagram endpoint for UDP IMC messages
-        sock_imc = get_imc_socket()
-        self._port_imc = sock_imc.getsockname()[1]
-        imc_listener = self._loop.create_datagram_endpoint(
-            lambda: IMCProtocolUDP(self),
-            sock=sock_imc
-        )
+        imc_listener = self._loop.create_datagram_endpoint(lambda: IMCProtocolUDP(self, is_multicast=False),
+                                                           family=socket.AF_INET)
 
         (major, minor, micro, rel, serial) = sys.version_info
         if major <= 3 and (minor < 4 or (minor == 4 and micro < 4)):
