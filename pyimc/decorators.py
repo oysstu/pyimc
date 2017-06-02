@@ -3,7 +3,7 @@ This file declares the decorators which provides a simple API
 for subscribing to certain messages or perform periodic tasks through the same event loop.
 """
 
-import asyncio, sys, types, socket
+import asyncio, sys, types, socket, inspect
 from contextlib import suppress
 from typing import Dict, List, Tuple
 
@@ -49,7 +49,7 @@ class Periodic(IMCDecoratorBase):
         @asyncio.coroutine
         def periodic_fn():
             while True:
-                fn(instance)
+                fn()
                 yield from asyncio.sleep(self.time)
 
         super().add_event(loop, instance, periodic_fn())
@@ -118,7 +118,7 @@ class IMCBase:
         if type(self._subs) is not dict:
             self._subs = {}
 
-        decorated = [(name, method) for name, method in self.__class__.__dict__.items() if hasattr(method, '_decorators')]
+        decorated = [(name, method) for name, method in inspect.getmembers(self) if hasattr(method, '_decorators')]
         for name, method in decorated:
             for decorator in method._decorators:
                 decorator.add_event(self._loop, self, method)

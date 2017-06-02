@@ -59,14 +59,14 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
         if pyimc.Message in type(p).__bases__:
             try:
                 for fn in self.instance._subs[type(p)]:
-                    fn(self.instance, p)
+                    fn(p)
             except KeyError:
                 pass
         elif type(p) is pyimc.Message:
             # Subscriptions to pyimc.Message receives all messages
             try:
                 for fn in self.instance._subs[pyimc.Message]:
-                    fn(self.instance, p)
+                    fn(p)
             except KeyError:
                 pass
         else:
