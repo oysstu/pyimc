@@ -56,7 +56,7 @@ class CMakeBuild(build_ext):
         subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
         # Generate pyi file
-        mod = import_module('imc')
+        #mod = import_module('imc')
 
 
 if __name__ == '__main__':
