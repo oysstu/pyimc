@@ -47,7 +47,7 @@ class ActorBase(IMCBase):
                 return self.nodes[possible_nodes[0]]
         elif id_type is tuple:
             # Determine the correct order of arguments
-            if type(node_id[0]) is int or type(node_id[1]) is str:
+            if type(node_id[0]) is int and type(node_id[1]) is str:
                 return self.nodes[node_id]
             else:
                 raise TypeError('Node id tuple must be (int, str).')
