@@ -133,7 +133,7 @@ class ActorBase(IMCBase):
         """
         # Build imc+udp string
         # TODO: Add TCP protocol for IMC
-        if not self.services:
+        if not self.services and self._port_imc:
             self.services = ['imc+udp://{}:{}/'.format(adr[1], self._port_imc) for adr in get_interfaces()]
             self.announce.services = ';'.join(self.services)
 
@@ -200,8 +200,12 @@ if __name__ == '__main__':
     # Setup logging level and console output
     logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
+    class ActorChild(ActorBase):
+        def __init__(self):
+            super().__init__()
+
     # Run actor
-    x = ActorBase()
+    x = ActorChild()
     x.heartbeat.append('lauv-simulator-9')
     x.run()
 
