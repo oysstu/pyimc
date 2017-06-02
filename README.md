@@ -16,13 +16,13 @@ This includes the pybind11 submodule.
 mkdir dune/build
 cd dune/build
 cmake -DCMAKE_CXX_FLAGS=-fPIC -flto ..
-make
-```
 
-#### If using the official IMC specification
-```bash
+# Create IMC bindings
+# Skip imc_download if using custom IMC bindings
 make imc_download
 make imc
+
+make
 ```
 
 ### Generate pybind bindings
