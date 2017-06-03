@@ -11,6 +11,7 @@ class IMCSenderUDP:
     def __enter__(self):
         # Set up socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 10)
 
         if self.local_port:
             # Bind the socket to a local interface
@@ -121,9 +122,10 @@ def get_imc_socket(sock=None):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     sock.settimeout(0.001)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     port = None
-    for i in range(6000, 6030):
+    for i in range(6001, 6030):
         try:
             sock.bind(('0.0.0.0', i))
             port = i

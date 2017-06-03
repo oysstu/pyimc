@@ -67,10 +67,9 @@ class IMCNode:
             return
 
         # TODO: Try to determine which service to use
-        svc_udp = imcudp_services[0]
-
-        with IMCSenderUDP(svc_udp.ip) as s:
-            s.send(message=msg, port=svc_udp.port)
+        for svc in imcudp_services:
+            with IMCSenderUDP(svc.ip) as s:
+                s.send(message=msg, port=svc.port)
 
     def __str__(self):
         return 'IMCNode(0x{:X}, {})'.format(self.announce.src, self.announce.sys_name)

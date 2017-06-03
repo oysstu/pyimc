@@ -101,7 +101,6 @@ class ActorBase(IMCBase):
         if not self.nodes[key].entities:
             q_ent = pyimc.EntityList()
             q_ent.op = pyimc.EntityList.OP_QUERY
-            #q_ent.dst_ent = self.nodes[key].announce.src_ent
             self.send(key, q_ent)
 
     @Subscribe(pyimc.EntityList)
@@ -135,17 +134,18 @@ class ActorBase(IMCBase):
         """
         # Build imc+udp string
         # TODO: Add TCP protocol for IMC
-        if not self.services and self._port_imc:
-            self.services = ['imc+udp://{}:{}/'.format(adr[1], self._port_imc) for adr in get_interfaces()]
-            self.announce.services = ';'.join(self.services)
+        if self._port_imc:
+            if not self.services:
+                self.services = ['imc+udp://{}:{}/'.format(adr[1], self._port_imc) for adr in get_interfaces()]
+                self.announce.services = ';'.join(self.services)
+            with IMCSenderUDP(multicast_ip) as s:
+                self.announce.setTimeStampCurrent()
+                for i in range(30100, 30105):
+                    s.send(self.announce, i)
+        else:
+            logging.debug('IMC socket not ready')
 
-        with IMCSenderUDP(multicast_ip) as s:
-            self.announce.setTimeStampCurrent()
-            for i in range(30100, 30105):
-                s.send(self.announce, i)
-        pass
-
-    @Periodic(1)
+    @Periodic(5)
     def send_heartbeat(self):
         """
         Send a heartbeat signal to nodes specified in self.heartbeat
