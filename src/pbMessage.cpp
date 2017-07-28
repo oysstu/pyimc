@@ -68,8 +68,8 @@ void pbMessage(py::module &m) {
             .def("clone", &Message::clone)
             .def("clear", &Message::clear)
             .def("validate", &Message::validate)
-            .def_property_readonly("name", &Message::getName)
-            .def_property_readonly("id", &Message::getId)
+            .def_property_readonly("msg_name", &Message::getName)   // msg_ prefix to avoid name collision
+            .def_property_readonly("msg_id", &Message::getId)       // msg_ prefix to avoid name collision
             //C++14: .def("setTimeStampCurrent", py::overload_cast<>(&Message::setTimeStamp))
             //C++14: .def_property("timestamp", &Message::getTimeStamp, py::overload_cast<double>(&Message::setTimeStamp))
             .def("setTimeStampCurrent", static_cast<double (Message::*)(void)>(&Message::setTimeStamp))
