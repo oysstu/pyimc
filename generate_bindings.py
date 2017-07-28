@@ -88,7 +88,7 @@ class IMCPybind(IMC):
 
     def write_messages(self):
         for m in self.messages:
-            if self.whitelist and m.abbrev not in self.whitelist:
+            if self.whitelist and m.abbrev.lower() not in self.whitelist:
                 continue
 
             include = self.common_include + ['DUNE/IMC/Message.hpp',
@@ -135,7 +135,7 @@ class IMCPybind(IMC):
 
         # Write forward declarations
         fnames = ['Enumerations', 'SuperTypes', 'Bitfields']
-        fnames += [m.abbrev for m in self.messages if not whitelist or m.abbrev in whitelist]
+        fnames += [m.abbrev for m in self.messages if not whitelist or m.abbrev.lower() in whitelist]
         s.extend(['void pb{}(py::module&);'.format(x) for x in fnames])
 
         # Entry point
@@ -167,6 +167,10 @@ if __name__ == '__main__':
         with open(args.whitelist, 'rt') as f:
             # Ignore empty lines and lines that starts with hashtag
             whitelist = [x.strip().lower() for x in f.readlines() if x.strip() and not x.startswith('#')]
+
+            print('Whitelist passed with the following messages:')
+            print(whitelist)
+
 
     pb = IMCPybind(args.imc_path, whitelist=whitelist)
     pb.write_bindings()
