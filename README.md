@@ -35,10 +35,10 @@ export DUNE_BUILD= ...
 When in the pyimc root directory run the following command to generate pybind wrapper under src/generated. If using the official IMC specification as described above, the XML path is ${DUNE_BUILD}/IMC/IMC.xml.
 
 ```bash
-python generate_bindings.py --dune_path=${DUNE_ROOT} --imc_path=${DUNE_BUILD}/IMC/IMC.xml
+python generate_bindings.py --imc_path=${DUNE_BUILD}/IMC/IMC.xml
 ```
 
-Optionally, a message whitelist can be passed with --whitelist.
+Optionally, a line-separated message whitelist can be passed with --whitelist.
 Only the messages in this file is then generated, producing a smaller library and shorter build times. 
 If an unknown message is parsed, it will simply be returned as the Message baseclass rather than a specialized message.
 
