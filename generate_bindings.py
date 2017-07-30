@@ -1,6 +1,7 @@
-import os, argparse
+import argparse
+import os
 
-from pyimc.xml import IMC
+from imc_schema import IMC
 
 
 class IMCPybind(IMC):
@@ -95,6 +96,7 @@ class IMCPybind(IMC):
                                              'DUNE/IMC/SuperTypes.hpp',
                                              'DUNE/IMC/Definitions.hpp']
             s = ['#include <{}>'.format(x) for x in include]
+            s.append('#include "../pbUtils.hpp"')
             s += self.common_namespace
 
             s.append('\nvoid pb{}(py::module &m) {{'.format(m.abbrev))
@@ -103,7 +105,13 @@ class IMCPybind(IMC):
 
             # Members
             for f in m.fields:
-                s.append('\tv{0}.def_readwrite("{1}", &{0}::{1});'.format(m.abbrev, f.abbrev.lower()))
+                if f.type == 'rawdata':
+                    mname, fname = m.abbrev, f.abbrev.lower()
+                    s.append('\tv{0}.def_property("{1}",'.format(mname, fname))
+                    s.append('\t\t[](const {0} &x){{return py::bytes(x.{1}.data(), x.{1}.size());}},'.format(mname, fname))
+                    s.append('\t\t[]({0} &x, py::bytes &b){{bytes_to_vector(b, x.{1});}});'.format(mname, fname))
+                else:
+                    s.append('\tv{0}.def_readwrite("{1}", &{0}::{1});'.format(m.abbrev, f.abbrev.lower()))
 
             # Inline enums/bitfields
             enum_fields = [f for f in m.fields if f.values]
