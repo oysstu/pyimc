@@ -59,7 +59,7 @@ class IMCPybind(IMC):
 
             for v in e.values:
                 s.append('\t\t.value("{1}_{2}", {0}::{1}_{2})'.format(e.abbrev, e.prefix, v.abbrev))
-            s.append('\t\t.export_values();\n')
+            s[-1] = s[-1] + ';'
         s.append('}\n')
 
         opath = os.path.join(self.odir, 'pbEnumerations.cpp')
@@ -80,7 +80,7 @@ class IMCPybind(IMC):
 
             for v in e.values:
                 s.append('\t\t.value("{1}_{2}", {0}::{1}_{2})'.format(e.abbrev, e.prefix, v.abbrev))
-            s.append('\t\t.export_values();\n')
+            s[-1] = s[-1] + ';'
         s.append('}\n')
 
         opath = os.path.join(self.odir, 'pbBitfields.cpp')
@@ -123,7 +123,6 @@ class IMCPybind(IMC):
                 for v in e.values:
                     s.append('\t\t.value("{0}", {1}::{2}::{0})'.format(e.prefix + '_' + v.abbrev, m.abbrev, fullname))
                 s[-1] = s[-1] + ';'
-                #s.append('\t\t.export_values();')
 
             s.append('}')
 
