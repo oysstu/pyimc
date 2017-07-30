@@ -58,7 +58,7 @@ class IMCPybind(IMC):
             s.append('\tpy::enum_<{0}>(m, "{0}", "{1}")'.format(e.abbrev, e.name))
 
             for v in e.values:
-                s.append('\t\t.value("{1}_{2}", {0}::{1}_{2})'.format(e.abbrev, e.prefix, v.abbrev))
+                s.append('\t\t.value("{2}", {0}::{1}_{2})'.format(e.abbrev, e.prefix, v.abbrev))
             s[-1] = s[-1] + ';'
         s.append('}\n')
 
@@ -79,7 +79,7 @@ class IMCPybind(IMC):
             s.append('\tpy::enum_<{0}>(m, "{0}", "{1}", py::arithmetic())'.format(e.abbrev, e.name))
 
             for v in e.values:
-                s.append('\t\t.value("{1}_{2}", {0}::{1}_{2})'.format(e.abbrev, e.prefix, v.abbrev))
+                s.append('\t\t.value("{2}", {0}::{1}_{2})'.format(e.abbrev, e.prefix, v.abbrev))
             s[-1] = s[-1] + ';'
         s.append('}\n')
 
@@ -121,7 +121,7 @@ class IMCPybind(IMC):
                 fullname = e.name.replace(' ', '') + ('Bits' if e.is_bitfield() else 'Enum')
                 s.append('\n\tpy::enum_<{0}::{1}>(v{0}, "{1}", "{2}"{3})'.format(m.abbrev, fullname, e.name, arit))
                 for v in e.values:
-                    s.append('\t\t.value("{0}", {1}::{2}::{0})'.format(e.prefix + '_' + v.abbrev, m.abbrev, fullname))
+                    s.append('\t\t.value("{0}", {2}::{3}::{1}_{0})'.format(v.abbrev, e.prefix, m.abbrev, fullname))
                 s[-1] = s[-1] + ';'
 
             s.append('}')
