@@ -122,7 +122,8 @@ class IMCPybind(IMC):
                 s.append('\n\tpy::enum_<{0}::{1}>(v{0}, "{1}", "{2}"{3})'.format(m.abbrev, fullname, e.name, arit))
                 for v in e.values:
                     s.append('\t\t.value("{0}", {1}::{2}::{0})'.format(e.prefix + '_' + v.abbrev, m.abbrev, fullname))
-                s.append('\t\t.export_values();')
+                s[-1] = s[-1] + ';'
+                #s.append('\t\t.export_values();')
 
             s.append('}')
 
