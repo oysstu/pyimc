@@ -69,6 +69,7 @@ if __name__ == '__main__':
         license='MIT',
         long_description='',
         packages=['pyimc'],
+        python_requires='>=3.4',
         install_requires=['netifaces', 'typing'],
         package_data={'': ['*.pyi']},
         ext_modules=[CMakeExtension('imc')],
