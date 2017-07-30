@@ -15,8 +15,7 @@ class IMCDecoratorBase:
     def add_event(self, loop, instance, fn):
         # Implements adding event to event loop
         # Ensure future was introduced in 3.4.4
-        (major, minor, micro, rel, serial) = sys.version_info
-        if major <= 3 and (minor < 4 or (minor == 4 and micro < 4)):
+        if sys.version_info < (3, 4, 4):
             recv_task0 = loop.create_task(fn)
         else:
             recv_task0 = asyncio.ensure_future(fn)
@@ -101,8 +100,7 @@ class IMCBase:
         imc_listener = self._loop.create_datagram_endpoint(lambda: IMCProtocolUDP(self, is_multicast=False),
                                                            family=socket.AF_INET)
 
-        (major, minor, micro, rel, serial) = sys.version_info
-        if major <= 3 and (minor < 4 or (minor == 4 and micro < 4)):
+        if sys.version_info < (3, 4, 4):
             self._task_mc = self._loop.create_task(multicast_listener)
             self._task_imc = self._loop.create_task(imc_listener)
         else:
