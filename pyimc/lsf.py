@@ -2,6 +2,7 @@
 Functionality related to the DUNE lsf logs.
 """
 
+import io
 import ctypes
 import pyimc
 
@@ -34,7 +35,6 @@ class LSFReader:
         self.pos = 0
         self.header = IMCHeader()  # Preallocate header buffer
         self.parser = pyimc.Parser()
-        self.index = []
 
     def __enter__(self):
         self.f = open(self.fpath, mode='rb')
@@ -44,26 +44,29 @@ class LSFReader:
         self.f.close()
 
     def read(self, msg_types=None):
-        if type(msg_types) is pyimc.Message:
-            msg_types = (msg_types,)
+        if msg_types:
+            msg_types = [x.__name__ for x in msg_types]
 
         # Check for file end
         while self.f.peek(1):
-            self.pos = self.f.tell()  # save message start
             bytes_read = self.f.readinto(self.header)
             if bytes_read < ctypes.sizeof(IMCHeader):
                 raise RuntimeError('LSF file ended abruptly.')
 
-            self.parser.reset()
-            self.f.seek(self.pos)
-            b = self.f.read(self.header.size + ctypes.sizeof(IMCHeader) + ctypes.sizeof(IMCFooter))
-            msg = self.parser.parse(b)
-            sz = self.header.size + ctypes.sizeof(IMCHeader) + ctypes.sizeof(IMCFooter)
-            yield msg
+            if not msg_types or pyimc.Factory.getAbbrevFromId(self.header.mgid) in msg_types:
+                self.parser.reset()
+                # Set position back to before header
+                self.f.seek(-ctypes.sizeof(IMCHeader), io.SEEK_CUR)
+                b = self.f.read(self.header.size + ctypes.sizeof(IMCHeader) + ctypes.sizeof(IMCFooter))
+                msg = self.parser.parse(b)
+                yield msg
+            else:
+                self.f.seek(self.header.size + ctypes.sizeof(IMCFooter), io.SEEK_CUR)
 
 
 if __name__ == '__main__':
-    with LSFReader('/home/oysstu/Downloads/imc_test/Data.lsf') as lsf:
-        for msg in lsf.read():
+    import os
+    idir = '.'
+    with LSFReader(os.path.join(idir, 'Data.lsf')) as lsf:
+        for msg in lsf.read(msg_types=[pyimc.Announce]):
             print(msg)
-
