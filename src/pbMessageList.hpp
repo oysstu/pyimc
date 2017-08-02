@@ -55,13 +55,20 @@ void pbMessageList(py::module &m) {
     .def(py::init<const MessageList<T>&>())
     .def("setParent", &MessageList<T>::setParent)
     .def("clear", &MessageList<T>::clear)
-    .def("size", &MessageList<T>::size)
+    .def_property_readonly("size", &MessageList<T>::size)
     // Object lifetime is tied to the message list
     .def("append", py::overload_cast<const T&>(&MessageList<T>::push_back), py::keep_alive<1, 2>())
     .def("setTimeStamp", &MessageList<T>::setTimeStamp)
+    .def("extend", [](MessageList<T> &ml, const py::object &iterable) {
+        // Throws if not iterable
+        for(auto msg : iterable){
+            ml.push_back(msg.cast<T*>());
+        }
+    }, py::keep_alive<1, 2>())
+
+    // Python operators
     .def(py::self != py::self)
     .def(py::self == py::self)
-    // Python operators
     .def("__len__", &MessageList<T>::size)
     .def("__iter__", [](const MessageList<T> &ml) { return py::make_iterator(ml.begin(), ml.end()); },
                         py::keep_alive<0, 1>() /* Keep message list alive while iterator exists */)
@@ -83,10 +90,11 @@ void pbMessageList(py::module &m) {
         auto end = ml.begin(); std::advance(end, stop);
         return py::make_iterator(begin, end);
     }, py::keep_alive<0, 1>())
-    .def("extend", [](MessageList<T> &ml, const py::object &iterable) {
-        // Throws if not iterable
-        for(auto msg : iterable){
-            ml.push_back(msg.cast<T*>());
+    .def("__contains__", [](const MessageList<T> &ml, const T &item){
+        for (auto msg : ml){
+            if(*msg == item)
+                return true;
         }
-    }, py::keep_alive<1, 2>());
+        return false;
+    });
 }
