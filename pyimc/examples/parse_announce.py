@@ -23,7 +23,7 @@ print(dir(ret2))
 print(ret2.src, ret2.src_ent, ret2.dst, ret2.dst_ent, ret2.id, ret2.subid)
 
 # Return to binary (44bytes missing?)
-retbin1 = pyimc.Packet.serialize(ret1)
+retbin1 = ret1.serialize()
 print(retbin1)
 print(bin1)
 

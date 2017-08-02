@@ -1,6 +1,8 @@
 #include <DUNE/IMC/Message.hpp>
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
+#include <DUNE/IMC/Packet.hpp>
+
 
 namespace py = pybind11;
 using namespace DUNE::IMC;
@@ -62,6 +64,14 @@ public:
         }
 };
 
+py::bytes fserialize(const Message* msg){ 
+    unsigned sz = msg->getSerializationSize();
+    uint8_t* buf = (uint8_t*)std::malloc(sz);
+    uint16_t n_written = Packet::serialize(msg, buf, sz);
+
+    return py::bytes(reinterpret_cast<const char*>(buf), static_cast<size_t>(n_written));
+};
+
 void pbMessage(py::module &m) {
     py::class_<Message, PyMessage>(m, "Message")
             .def(py::init<>())
@@ -70,8 +80,8 @@ void pbMessage(py::module &m) {
             .def("validate", &Message::validate)
             .def_property_readonly("msg_name", &Message::getName)   // msg_ prefix to avoid name collision
             .def_property_readonly("msg_id", &Message::getId)       // msg_ prefix to avoid name collision
-            //C++14: .def("setTimeStampCurrent", py::overload_cast<>(&Message::setTimeStamp))
-            //C++14: .def_property("timestamp", &Message::getTimeStamp, py::overload_cast<double>(&Message::setTimeStamp))
+            //Requires C++14: .def("setTimeStampCurrent", py::overload_cast<>(&Message::setTimeStamp))
+            //Requires C++14: .def_property("timestamp", &Message::getTimeStamp, py::overload_cast<double>(&Message::setTimeStamp))
             .def("setTimeStampCurrent", static_cast<double (Message::*)(void)>(&Message::setTimeStamp))
             .def_property("timestamp", &Message::getTimeStamp, static_cast<double (Message::*)(double)>(&Message::setTimeStamp))
             .def_property("src", &Message::getSource, &Message::setSource)
@@ -79,7 +89,7 @@ void pbMessage(py::module &m) {
             .def_property("dst", &Message::getDestination, &Message::setDestination)
             .def_property("dst_ent", &Message::getDestinationEntity, &Message::setDestinationEntity)
             .def_property("subid", &Message::getSubId, &Message::setSubId)
-            .def("getSerializationSize", &Message::getSerializationSize);
+            .def("serialize", &fserialize);
 
             // Unused
             //.def("getPayloadSerializationSize", &Message::getPayloadSerializationSize)

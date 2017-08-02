@@ -24,7 +24,7 @@ class IMCSenderUDP:
 
     def send(self, message, port):
         if message.__module__ == 'imc':
-            b = pyimc.Packet.serialize(message)
+            b = message.serialize()
             self.sock.sendto(b, (self.dst, port))
         else:
             raise TypeError('Unknown message passed ({})'.format(type(message)))

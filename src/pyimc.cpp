@@ -16,7 +16,6 @@ PYBIND11_PLUGIN(imc) {
 
     // Bind classes
     pbMessage(m);
-    pbPacket(m);
     pbParser(m);
     pbFactory(m);
     pbAlgorithms(m);
