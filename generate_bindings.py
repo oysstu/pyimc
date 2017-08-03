@@ -4,6 +4,33 @@ import os
 from imc_schema import IMC
 
 
+# C++ template code for InlineMessage fields
+inline_message_template = """
+v{message}.def_property("{field}", 
+[](const {message} &x){{return x.{field}.isNull() ? nullptr : x.{field}.get();}}, 
+[]({message} *x, const py::handle &y){{
+    if(y.is_none()){{
+        x->{field}.clear();
+    }} else {{
+        try {{
+            x->{field}.set(y.cast<{inline_type}*>()); 
+        }}
+        catch(const py::cast_error &e){{
+            PyErr_Clear();
+            throw py::cast_error("Failed to cast to C++ type. Expected types are {inline_type} or NoneType.");
+        }}
+        x->{field}.setParent(x);
+    }}
+}}, py::keep_alive<1, 2>());
+"""
+
+# C++ template for rawdata fields
+rawdata_template = """
+v{message}.def_property("{field}",
+    [](const {message} &x){{return py::bytes(x.{field}.data(), x.{field}.size());}},
+    []({message} &x, py::bytes &b){{bytes_to_vector(b, x.{field});}}, py::return_value_policy::take_ownership);
+"""
+
 class IMCPybind(IMC):
     """
     Generates python bindings for DUNE+IMC using pybind11.
@@ -106,10 +133,14 @@ class IMCPybind(IMC):
             # Members
             for f in m.fields:
                 if f.type == 'rawdata':
-                    mname, fname = m.abbrev, f.abbrev.lower()
-                    s.append('\tv{0}.def_property("{1}",'.format(mname, fname))
-                    s.append('\t\t[](const {0} &x){{return py::bytes(x.{1}.data(), x.{1}.size());}},'.format(mname, fname))
-                    s.append('\t\t[]({0} &x, py::bytes &b){{bytes_to_vector(b, x.{1});}});'.format(mname, fname))
+                    rawdata = rawdata_template.format(message=m.abbrev, field=f.abbrev.lower())
+                    s.extend(['\t' + x for x in rawdata.splitlines()])
+                elif f.type == 'message':
+                    inline_type = f.message_type if f.message_type else 'Message'
+                    inline_message = inline_message_template.format(message=m.abbrev,
+                                                                    field=f.abbrev.lower(),
+                                                                    inline_type=inline_type)
+                    s.extend(['\t' + x for x in inline_message.splitlines()])
                 else:
                     s.append('\tv{0}.def_readwrite("{1}", &{0}::{1});'.format(m.abbrev, f.abbrev.lower()))
 
@@ -163,6 +194,74 @@ class IMCPybind(IMC):
         with open(opath, 'wt') as f:
             f.write('\n'.join(s))
 
+
+class IMCPyi(IMC):
+    """
+    Generates python type hinting (pyi) for DUNE+IMC bindings
+    """
+    # Mapping between IMC type and pure python type
+    imctype_pyi = {
+        'int8_t': 'int',
+        'uint8_t': 'int',
+        'int16_t': 'int',
+        'uint16_t': 'int',
+        'int32_t': 'int',
+        'uint32_t': 'int',
+        'int64_t': 'int',
+        'uint64_t': 'int',
+        'fp32_t': 'float',
+        'fp64_t': 'float',
+        'rawdata': 'bytes',
+        'plaintext': 'str',
+        'message': 'Message',
+        'message-list': 'MessageList'
+    }
+
+    def __init__(self, imc_path, whitelist=None, out_dir='src/generated'):
+        super().__init__(imc_path)
+        self.odir = out_dir
+        self.whitelist = whitelist
+        if not os.path.exists(self.odir):
+            os.makedirs(self.odir)
+
+        self.imc = []
+
+    def write_bindings(self):
+        self.write_supertypes()
+        self.write_enumerations()
+        self.write_bitfields()
+        self.write_messages()
+        self.write_generated()
+
+
+    def write_supertypes(self):
+        """
+        Generate the message supertypes bindings
+        """
+        pass
+
+    def write_enumerations(self):
+        """
+        Generate the global enumerations
+        """
+        pass
+
+    def write_bitfields(self):
+        """
+        Generate the global bitfields
+        """
+        pass
+
+    def write_messages(self):
+        pass
+
+    def write_generated(self):
+        """
+        Generate a single point of entry for pybind for all generated bindings
+        """
+        pass
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate IMC pybind11 wrapper code.')
     parser.add_argument('--imc_path', type=str, required=True, help='Path to the IMC XML specification.')
@@ -178,7 +277,6 @@ if __name__ == '__main__':
 
             print('Whitelist passed with the following messages:')
             print(whitelist)
-
 
     pb = IMCPybind(args.imc_path, whitelist=whitelist)
     pb.write_bindings()
