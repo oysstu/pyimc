@@ -1,5 +1,6 @@
 import argparse
 import os
+import string
 
 from imc_schema import IMC
 
@@ -149,10 +150,13 @@ class IMCPybind(IMC):
             for f in enum_fields:
                 e = f.get_inline_enum()
                 arit = ', py::arithmetic()' if e.is_bitfield() else ''
-                fullname = e.name.replace(' ', '') + ('Bits' if e.is_bitfield() else 'Enum')
-                s.append('\n\tpy::enum_<{0}::{1}>(v{0}, "{1}", "{2}"{3})'.format(m.abbrev, fullname, e.name, arit))
+                # Some enumerations start with lower case, use upper case for python name
+                pyname = string.capwords(e.name.replace('_', ' ')).replace(' ', '')
+                pyname += 'Bits' if e.is_bitfield() else 'Enum'
+                cppname = e.name.replace(' ', '') + ('Bits' if e.is_bitfield() else 'Enum')
+                s.append('\n\tpy::enum_<{0}::{1}>(v{0}, "{2}", "{3}"{4})'.format(m.abbrev, cppname, pyname, e.name, arit))
                 for v in e.values:
-                    s.append('\t\t.value("{0}", {2}::{3}::{1}_{0})'.format(v.abbrev, e.prefix, m.abbrev, fullname))
+                    s.append('\t\t.value("{0}", {2}::{3}::{1}_{0})'.format(v.abbrev, e.prefix, m.abbrev, cppname))
                 s[-1] = s[-1] + ';'
 
             s.append('}')
