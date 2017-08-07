@@ -25,9 +25,12 @@ class ActorBase(IMCBase):
         self.announce.src = 0x3334  # imcjava uses 0x3333
         self.announce.sys_name = 'ccu-pyimc-{}'.format(socket.gethostname().lower())
         self.announce.sys_type = pyimc.SystemType.CCU
+        self.announce.owner = 0xFFFF
+        self.announce.src_ent = 1
+
 
         # Set initial entities
-        self.entities = {'Daemon': 0}
+        self.entities = {'Daemon': 0, 'Service Announcer': 1}
         self.services = None  # Generated on first announce
         self.heartbeat = []  # type: List[Union[str, int, Tuple[int, str]]]
 
@@ -146,7 +149,7 @@ class ActorBase(IMCBase):
         else:
             logging.debug('IMC socket not ready')
 
-    @Periodic(5)
+    @Periodic(1)
     def send_heartbeat(self):
         """
         Send a heartbeat signal to nodes specified in self.heartbeat
