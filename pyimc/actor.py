@@ -71,7 +71,7 @@ class ActorBase(IMCBase):
 
         # Fill out source params
         msg.src = self.announce.src
-        msg.setTimeStampCurrent()
+        msg.set_timestamp_now()
 
         node = self.resolve_node_id(node_id)
         node.send(msg)
@@ -100,24 +100,25 @@ class ActorBase(IMCBase):
 
         if not self.nodes[key].entities:
             q_ent = pyimc.EntityList()
-            q_ent.op = pyimc.EntityList.OP_QUERY
+            q_ent.op = pyimc.EntityList.OperationEnum.QUERY
             self.send(key, q_ent)
 
     @Subscribe(pyimc.EntityList)
     def recv_entity_list(self, msg):
+        OpEnum = pyimc.EntityList.OperationEnum  # type: class
         try:
             node = self.resolve_node_id(msg)
-            if msg.op == pyimc.EntityList.OP_REPORT:
+            if msg.op == OpEnum.REPORT:
                 node.update_entity_list(msg)
-            elif msg.op == pyimc.EntityList.OP_QUERY:
+            elif msg.op == OpEnum.QUERY:
                 # Format entities into string and send back to node that requested it
                 ent_lst_sorted = sorted(self.entities.items(), key=itemgetter(1))  # Sort by value (entity id)
                 ent_lst = pyimc.EntityList()
-                ent_lst.op = pyimc.EntityList.OP_REPORT
+                ent_lst.op = OpEnum.REPORT
                 ent_lst.list = ';'.join('{}={}'.format(k, v) for k, v in ent_lst_sorted)
                 self.send(node, ent_lst)
         except (AmbiguousKeyError, KeyError):
-            errstr = 'receiving' if msg.op == pyimc.EntityList.OP_REPORT else 'sending'
+            errstr = 'receiving' if msg.op == OpEnum.REPORT else 'sending'
             logging.debug('Unable to resolve node when ' + errstr + ' EntityList')
             pass
 
@@ -139,7 +140,7 @@ class ActorBase(IMCBase):
                 self.services = ['imc+udp://{}:{}/'.format(adr[1], self._port_imc) for adr in get_interfaces()]
                 self.announce.services = ';'.join(self.services)
             with IMCSenderUDP(multicast_ip) as s:
-                self.announce.setTimeStampCurrent()
+                self.announce.set_timestamp_now()
                 for i in range(30100, 30105):
                     s.send(self.announce, i)
         else:

@@ -53,7 +53,7 @@ class LSFReader:
             if bytes_read < ctypes.sizeof(IMCHeader):
                 raise RuntimeError('LSF file ended abruptly.')
 
-            if not msg_types or pyimc.Factory.getAbbrevFromId(self.header.mgid) in msg_types:
+            if not msg_types or pyimc.Factory.abbrev_from_id(self.header.mgid) in msg_types:
                 self.parser.reset()
                 # Set position back to before header
                 self.f.seek(-ctypes.sizeof(IMCHeader), io.SEEK_CUR)
@@ -70,3 +70,4 @@ if __name__ == '__main__':
     with LSFReader(os.path.join(idir, 'Data.lsf')) as lsf:
         for msg in lsf.read(msg_types=[pyimc.Announce]):
             print(msg)
+
