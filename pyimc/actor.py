@@ -24,7 +24,7 @@ class ActorBase(IMCBase):
         self.announce = pyimc.Announce()
         self.announce.src = 0x3334  # imcjava uses 0x3333
         self.announce.sys_name = 'ccu-pyimc-{}'.format(socket.gethostname().lower())
-        self.announce.sys_type = pyimc.SYSTEMTYPE_CCU
+        self.announce.sys_type = pyimc.SystemType.CCU
 
         # Set initial entities
         self.entities = {'Daemon': 0}
