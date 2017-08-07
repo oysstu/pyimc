@@ -80,37 +80,17 @@ void pbMessage(py::module &m) {
             .def("validate", &Message::validate)
             .def_property_readonly("msg_name", &Message::getName)   // msg_ prefix to avoid name collision
             .def_property_readonly("msg_id", &Message::getId)       // msg_ prefix to avoid name collision
-            //Requires C++14: .def("setTimeStampCurrent", py::overload_cast<>(&Message::setTimeStamp))
-            //Requires C++14: .def_property("timestamp", &Message::getTimeStamp, py::overload_cast<double>(&Message::setTimeStamp))
-            .def("setTimeStampCurrent", static_cast<double (Message::*)(void)>(&Message::setTimeStamp))
+#ifdef PYBIND11_CPP14
+            .def("set_timestamp_now", py::overload_cast<>(&Message::setTimeStamp))
+            .def_property("timestamp", &Message::getTimeStamp, py::overload_cast<double>(&Message::setTimeStamp))
+#else
+            .def("set_timestamp_now", static_cast<double (Message::*)(void)>(&Message::setTimeStamp))
             .def_property("timestamp", &Message::getTimeStamp, static_cast<double (Message::*)(double)>(&Message::setTimeStamp))
+#endif
             .def_property("src", &Message::getSource, &Message::setSource)
             .def_property("src_ent", &Message::getSourceEntity, &Message::setSourceEntity)
             .def_property("dst", &Message::getDestination, &Message::setDestination)
             .def_property("dst_ent", &Message::getDestinationEntity, &Message::setDestinationEntity)
-            .def_property("subid", &Message::getSubId, &Message::setSubId)
+            .def_property("sub_id", &Message::getSubId, &Message::setSubId)
             .def("serialize", &fserialize);
-
-            // Unused
-            //.def("getPayloadSerializationSize", &Message::getPayloadSerializationSize)
-            //.def("getFixedSerializationSize", &Message::getFixedSerializationSize)
-            //.def("getVariableSerializationSize", &Message::getVariableSerializationSize)
-
-            // Use value field directly instead
-            //.def("getValueFP", &Message::getValueFP)
-            //.def("setValueFP", &Message::setValueFP)
-
-            // Use parser/packet classes to reduce binding size
-            //.def("reverseDeserializeFields", &Message::reverseDeserializeFields)
-            //.def("serializeFields", &Message::serializeFields)
-            //.def("deserializeFields", &Message::deserializeFields)
-
-            // std::ostream not implemented
-            //.def("fieldsToJSON", &Message::fieldsToJSON)
-            //.def("toJSON", &Message::toJSON)
-            //.def("toText", &Message::toText)
-
-
-            //.def(py::self == py::self)
-            //.def(py::self != py::self);
 }

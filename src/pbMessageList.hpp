@@ -53,12 +53,16 @@ void pbMessageList(py::module &m) {
     py::class_<MessageList<T>>(m, (std::string("MessageList") + type_name<T>()).c_str())
     .def(py::init<>())
     .def(py::init<const MessageList<T>&>())
-    .def("setParent", &MessageList<T>::setParent)
+    .def("set_parent", &MessageList<T>::setParent)
     .def("clear", &MessageList<T>::clear)
     .def_property_readonly("size", &MessageList<T>::size)
     // Object lifetime is tied to the message list
+#ifdef PYBIND11_CPP14
     .def("append", py::overload_cast<const T&>(&MessageList<T>::push_back), py::keep_alive<1, 2>())
-    .def("setTimeStamp", &MessageList<T>::setTimeStamp)
+#else
+    .def("append", static_cast<void (MessageList<T>::*)(const T&)>(&MessageList<T>::push_back), py::keep_alive<1, 2>())
+#endif
+    .def("set_timestamp", &MessageList<T>::setTimeStamp)
     .def("extend", [](MessageList<T> &ml, const py::object &iterable) {
         // Throws if not iterable
         for(auto msg : iterable){
