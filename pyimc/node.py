@@ -66,10 +66,11 @@ class IMCNode:
             logging.error('{} does not expose an imc+udp service'.format(self))
             return
 
-        # TODO: Try to determine which service to use
+        # TODO: Try to determine which service to use, for now use first svc
         for svc in imcudp_services:
             with IMCSenderUDP(svc.ip) as s:
                 s.send(message=msg, port=svc.port)
+                break
 
     def __str__(self):
         return 'IMCNode(0x{:X}, {})'.format(self.announce.src, self.announce.sys_name)
