@@ -57,6 +57,8 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
             try:
                 for fn in self.instance._subs[type(p)]:
                     fn(p)
+                for fn in self.instance._subs[pyimc.Message]:
+                    fn(p)
             except KeyError:
                 pass
         elif type(p) is pyimc.Message:
