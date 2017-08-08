@@ -22,7 +22,7 @@ cmake -DCMAKE_CXX_FLAGS=-fPIC -flto ..
 make imc_download
 make imc
 
-make
+make dune-core
 ```
 
 ### Generate pybind bindings
