@@ -153,10 +153,15 @@ class IMCPybind(IMC):
                 # Some enumerations start with lower case, use upper case for python name
                 pyname = string.capwords(e.name.replace('_', ' ')).replace(' ', '')
                 pyname += 'Bits' if e.is_bitfield() else 'Enum'
+                # Fields starting with digits is invalid in Python, prepend underscore
+                if pyname[0].isdigit():
+                    pyname = '_' + pyname
                 cppname = e.name.replace(' ', '') + ('Bits' if e.is_bitfield() else 'Enum')
                 s.append('\n\tpy::enum_<{0}::{1}>(v{0}, "{2}", "{3}"{4})'.format(m.abbrev, cppname, pyname, e.name, arit))
                 for v in e.values:
-                    s.append('\t\t.value("{0}", {2}::{3}::{1}_{0})'.format(v.abbrev, e.prefix, m.abbrev, cppname))
+                    # Fields starting with digits is invalid in Python, prepend underscore
+                    pyval = '_' + v.abbrev if v.abbrev[0].isdigit() else v.abbrev
+                    s.append('\t\t.value("{0}", {1}::{2}::{3}_{4})'.format(pyval, m.abbrev, cppname, e.prefix, v.abbrev))
                 s[-1] = s[-1] + ';'
 
             s.append('}')
@@ -221,50 +226,97 @@ class IMCPyi(IMC):
         'message-list': 'MessageList'
     }
 
-    def __init__(self, imc_path, whitelist=None, out_dir='src/generated'):
+    def __init__(self, imc_path, whitelist=None):
         super().__init__(imc_path)
-        self.odir = out_dir
         self.whitelist = whitelist
-        if not os.path.exists(self.odir):
-            os.makedirs(self.odir)
 
-        self.imc = []
+        self.sortby_message_dependencies()
 
-    def write_bindings(self):
-        self.write_supertypes()
+        self.s = []
+
+    def write_pyi(self):
         self.write_enumerations()
         self.write_bitfields()
+        self.write_supertypes()
         self.write_messages()
-        self.write_generated()
 
+        with open('imc_static.pyi', 'rt') as fi, open('imc.pyi', 'wt') as fo:
+            fo.write(fi.read())
+            fo.write('\n'.join(self.s))
 
     def write_supertypes(self):
         """
-        Generate the message supertypes bindings
+        Generate the message supertypes
         """
-        pass
+        for abbrev, children in self.message_groups:
+            self.s.append('class {0}(Message):'.format(abbrev, abbrev))
+            self.s.append('\tpass\n')
 
     def write_enumerations(self):
         """
         Generate the global enumerations
         """
-        pass
+        for e in self.enumerations:
+            if e.abbrev == 'Boolean':
+                continue
+            self.s.append('class {0}:'.format(e.abbrev))
+            for v in e.values:
+                self.s.append('\t{0} = None  # type: int'.format(v.abbrev))
+            self.s.append('')
 
     def write_bitfields(self):
         """
         Generate the global bitfields
         """
-        pass
+        for e in self.bitfields:
+            self.s.append('class {0}:'.format(e.abbrev))
+
+            for v in e.values:
+                self.s.append('\t{0} = None  # type: int'.format(v.abbrev))
+            self.s.append('')
 
     def write_messages(self):
-        pass
+        for m in self.messages:
+            if self.whitelist and m.abbrev.lower() not in self.whitelist:
+                continue
 
-    def write_generated(self):
-        """
-        Generate a single point of entry for pybind for all generated bindings
-        """
-        pass
+            self.s.append('class {0}({1}):'.format(m.abbrev, m.parent, m.name))
 
+            # Members
+            for f in m.fields:
+                fabbr = f.abbrev.lower()
+                inline_type = f.message_type if f.message_type else 'Message'
+                self.s.append('\t@property')
+                if f.type == 'message':
+                    self.s.append('\tdef {0}(self) -> {1}: ...'.format(fabbr, inline_type))
+                    self.s.append('\t@{}.setter'.format(fabbr))
+                    self.s.append('\tdef {0}(self, {0}: {1}) -> None: ...'.format(fabbr, inline_type))
+                elif f.type == 'message-list':
+                    self.s.append('\tdef {0}(self) -> MessageList[{1}]: ...'.format(fabbr, inline_type))
+                    self.s.append('\t@{}.setter'.format(fabbr))
+                    self.s.append('\tdef {0}(self, {0}: MessageList[{1}]) -> None: ...'.format(fabbr, inline_type))
+                else:
+                    self.s.append('\tdef {}(self) -> {}: ...'.format(fabbr, self.imctype_pyi[f.type]))
+                    self.s.append('\t@{}.setter'.format(fabbr))
+                    self.s.append('\tdef {0}(self, {0}: {1}) -> None: ...'.format(fabbr, self.imctype_pyi[f.type]))
+
+            # Inline enums/bitfields
+            enum_fields = [f for f in m.fields if f.values]
+            for f in enum_fields:
+                e = f.get_inline_enum()
+                # Some enumerations start with lower case, use upper case for python name
+                pyname = string.capwords(e.name.replace('_', ' ')).replace(' ', '')
+                pyname += 'Bits' if e.is_bitfield() else 'Enum'
+                self.s.append('\tclass {0}:'.format(pyname))
+                for v in e.values:
+                    # Fields starting with digits is invalid in Python, prepend underscore
+                    pyval = '_' + v.abbrev if v.abbrev[0].isdigit() else v.abbrev
+                    self.s.append('\t\t{0} = None'.format(pyval))
+
+            if not m.fields and not enum_fields:
+                self.s.append('\tpass')
+
+            self.s.append('')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate IMC pybind11 wrapper code.')
@@ -285,6 +337,8 @@ if __name__ == '__main__':
     pb = IMCPybind(args.imc_path, whitelist=whitelist)
     pb.write_bindings()
 
+    pyi = IMCPyi(args.imc_path, whitelist=whitelist)
+    pyi.write_pyi()
 
 
 

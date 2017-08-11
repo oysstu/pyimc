@@ -1,10 +1,8 @@
-import os, re, sys, platform, subprocess
+import os, re, sys, platform, subprocess, shutil
 
-from importlib import import_module
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 from distutils.version import LooseVersion
-from distutils.errors import DistutilsSetupError
 
 
 class CMakeExtension(Extension):
@@ -55,8 +53,8 @@ class CMakeBuild(build_ext):
         subprocess.check_call(['cmake', ext.sourcedir] + cmake_args, cwd=self.build_temp, env=env)
         subprocess.check_call(['cmake', '--build', '.'] + build_args, cwd=self.build_temp)
 
-        # Generate pyi file
-        #mod = import_module('imc')
+        # Copy pyi file to out dir
+        shutil.copy('imc.pyi', os.path.join(extdir, 'imc.pyi'))
 
 
 if __name__ == '__main__':
@@ -71,7 +69,8 @@ if __name__ == '__main__':
         packages=['pyimc'],
         python_requires='>=3.4',
         install_requires=['netifaces', 'typing'],
-        package_data={'': ['*.pyi']},
+        package_data={'': ['imc.pyi']},
+        include_package_data=True,
         ext_modules=[CMakeExtension('imc')],
         cmdclass=dict(build_ext=CMakeBuild),
         zip_safe=False
