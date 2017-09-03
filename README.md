@@ -32,3 +32,17 @@ embedded systems, as the linker comsumes much memory for the full message set.
 If an unknown message is parsed, it will be returned as the Message baseclass rather than a specialized message.
 Look at minimal_whitelist.cfg for a set of messages that should always be included.
 
+
+
+
+#### TODO
+
+##### Features
+- Implement convenience functions for controlling an agent
+- Improve networking. Currently the first one is used if a node announces several udp+imc protocols
+
+##### Bugs/issues
+
+##### Testing
+- Loss of network interface
+- Loss of connectivity
