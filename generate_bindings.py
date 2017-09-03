@@ -183,7 +183,7 @@ class IMCPybind(IMC):
 
         # Write forward declarations
         fnames = ['Enumerations', 'SuperTypes', 'Bitfields']
-        fnames += [m.abbrev for m in self.messages if not whitelist or m.abbrev.lower() in whitelist]
+        fnames += [m.abbrev for m in self.messages if not self.whitelist or m.abbrev.lower() in self.whitelist]
         s.extend(['void pb{}(py::module&);'.format(x) for x in fnames])
 
         # Entry point
@@ -240,7 +240,7 @@ class IMCPyi(IMC):
         self.write_supertypes()
         self.write_messages()
 
-        with open('imc_static.pyi', 'rt') as fi, open('imc.pyi', 'wt') as fo:
+        with open('imc_static.pyi', 'rt') as fi, open('_pyimc.pyi', 'wt') as fo:
             fo.write(fi.read())
             fo.write('\n'.join(self.s))
 

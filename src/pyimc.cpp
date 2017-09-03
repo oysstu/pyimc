@@ -11,8 +11,8 @@ void pbFactory(py::module &);
 void pbConstants(py::module &);
 void pbAlgorithms(py::module &);
 
-PYBIND11_PLUGIN(imc) {
-    py::module m("imc", "IMC bindings for python");
+PYBIND11_MODULE(_pyimc, m) {
+    m.doc() = "IMC bindings for python";
 
     // Bind classes
     pbMessage(m);
@@ -25,6 +25,4 @@ PYBIND11_PLUGIN(imc) {
 
     // Add classes
     pbGenerated(m);
-
-    return m.ptr();
 }

@@ -1,4 +1,4 @@
-#include <pybind11/common.h>
+#include <pybind11/detail/common.h>
 #include <pybind11/pybind11.h>
 namespace py = pybind11;
 
