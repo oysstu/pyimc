@@ -19,7 +19,6 @@ simply add a folder called dune or imc, respectively, in the top folder. They wi
 #### Build and install using setuptools (wrapper around cmake)
 
 ```bash
-python3 setup.py build
 python3 setup.py install
 ```
 
