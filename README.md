@@ -1,50 +1,34 @@
-# imcpython
-Python bindings for IMC
+# pyimc
+Python bindings for IMC.
 
-## Install instructions
-The install will be simplified in the future, but for now these are the necessary steps.
+### Installation
 
-
-### Clone this project using
+#### Clone this project using
 ```bash
 git clone --recursive git://github.com/oysstu/pyimc.git
 ```
 This includes the pybind11 submodule.
 
-### Build DUNE with position independent code
-```bash
-mkdir dune/build
-cd dune/build
-cmake -DCMAKE_CXX_FLAGS=-fPIC -flto ..
 
-# Create IMC bindings
-# Skip imc_download if using custom IMC bindings
-make imc_download
-make imc
+###### (Optional) Use a specific IMC/Dune version
+The setup checks for a folder named imc and dune in the top folder. If these are not found,
+they are retrieved from the LSTS repositories (master). To use a different version,
+simply add a folder called dune or imc, respectively, in the top folder. They will automatically be used.
 
-make dune-core
-```
 
-### Generate pybind bindings
-Export the following environmental variables, where ... are the paths to the dune source folder and dune build folder respectively.
-```bash
-export DUNE_ROOT= ...
-export DUNE_BUILD= ...
-```
-
-When in the pyimc root directory run the following command to generate pybind wrapper under src/generated. If using the official IMC specification as described above, the XML path is ${DUNE_BUILD}/IMC/IMC.xml.
+#### Build and install using setuptools (wrapper around cmake)
 
 ```bash
-python generate_bindings.py --imc_path=${DUNE_BUILD}/IMC/IMC.xml
+python3 setup.py build
+python3 setup.py install
 ```
 
-Optionally, a line-separated message whitelist can be passed with --whitelist.
-Only the messages in this file is then generated, producing a smaller library and shorter build times. 
-If an unknown message is parsed, it will simply be returned as the Message baseclass rather than a specialized message.
 
-### Build using setuptools (wrapper around cmake)
 
-```bash
-python setup.py build
-python setup.py install
-```
+###### (Optional) Only generate bindings for a subset of IMC messages
+A config file named whitelist.cfg can be placed in the root folder to
+only create bindings for a subset of the IMC messages. This can be necessary when compiling on
+embedded systems, as the linker comsumes much memory for the full message set.
+If an unknown message is parsed, it will be returned as the Message baseclass rather than a specialized message.
+Look at minimal_whitelist.cfg for a set of messages that should always be included.
+
