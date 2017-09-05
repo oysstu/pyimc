@@ -10,6 +10,7 @@ void pbParser(py::module &);
 void pbFactory(py::module &);
 void pbConstants(py::module &);
 void pbAlgorithms(py::module &);
+void pbCoordinates(py::module &);
 
 PYBIND11_MODULE(_pyimc, m) {
     m.doc() = "IMC bindings for python";
@@ -19,6 +20,7 @@ PYBIND11_MODULE(_pyimc, m) {
     pbParser(m);
     pbFactory(m);
     pbAlgorithms(m);
+    pbCoordinates(m);
 
     // Bind constants
     pbConstants(m);
