@@ -121,6 +121,18 @@ class LSFReader:
             # Remove timestamp entry
             del self.idx['timestamp']
 
+    def count_index(self, msgtype: Type[pyimc.Message]) -> int:
+        """
+        Get the number of messages for a given type.
+        Can be used as a performance hint to e.g preallocate numpy arrays.
+        :param msgtype: The message type to return the index count for.
+        :return: The number of messages of a given type
+        """
+        if not self.idx:
+            raise RuntimeError('Indexing must be enabled to get the index count.')
+
+        return len(self.idx[pyimc.Factory.id_from_abbrev(msgtype.__name__)])
+
     def sorted_idx_iter(self, types: List[int]) -> Iterable[int]:
         """
         Returns an iterator of file positions sorted by file position (across different message types)
@@ -169,5 +181,6 @@ if __name__ == '__main__':
     idir = '.'
     lsf_path = os.path.join(idir, 'Data.lsf')
     with LSFReader(lsf_path, types=[pyimc.Announce], make_index=True) as lsf:
+        print('Number of announce messages: ' + str(lsf.count_index(pyimc.Announce)))
         for msg in lsf.read():
             print(msg)
