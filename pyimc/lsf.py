@@ -3,11 +3,12 @@ Functionality related to the DUNE lsf logs.
 """
 
 import io
+import os
 import ctypes
 import pyimc
 import pickle
 import heapq
-from typing import List, Dict, Union, Iterable
+from typing import List, Dict, Union, Iterable, Type
 
 
 # Re-definition of IMC Header and Footer
@@ -35,15 +36,32 @@ class IMCFooter(ctypes.LittleEndianStructure):
 
 
 class LSFReader:
-    def __init__(self, lsf_path):
+    def __init__(self, lsf_path: str, types: List[Type[pyimc.Message]] = None, make_index=True):
+        """
+        Reads an LSF file.
+        :param lsf_path: The path to the LSF file.
+        :param types: The message types to return. List of pyimc message classes.
+        :param make_index: If true, an index that speeds up subsequent reads is created.
+        """
         self.fpath = lsf_path
         self.f = None  # type: io.BufferedIOBase
         self.header = IMCHeader()  # Preallocate header buffer
         self.parser = pyimc.Parser()
         self.idx = {}  # type: Dict[Union[int, str], List[int]]
+        self.make_index = make_index
+
+        if types:
+            self.msg_types = [pyimc.Factory.id_from_abbrev(x.__name__) for x in types]
+        else:
+            self.msg_types = None
 
     def __enter__(self):
         self.f = open(self.fpath, mode='rb')
+
+        self.read_index()
+        if not self.idx and self.make_index:
+            self.write_index()
+
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -117,17 +135,15 @@ class LSFReader:
         # Use the heapq.merge function to return sorted iterator of file indices
         return heapq.merge(*idx_iters)
 
-    def read(self, msg_types=None):
-        if msg_types:
-            msg_types = [pyimc.Factory.id_from_abbrev(x.__name__) for x in msg_types]
-
-        self.read_index()
-        if not self.idx and msg_types:
-            self.write_index()
+    def read(self):
+        """
+        Returns a generator that yields the messages in the LSF file.
+        :return:
+        """
 
         if self.idx:
             # Read using index
-            for pos in self.sorted_idx_iter(msg_types):
+            for pos in self.sorted_idx_iter(self.msg_types):
                 self.f.seek(pos)
                 self.peek_header()
                 self.parser.reset()
@@ -140,7 +156,7 @@ class LSFReader:
             while self.f.peek(1):
                 self.peek_header()
 
-                if not msg_types or self.header.mgid in msg_types:
+                if not self.msg_types or self.header.mgid in self.msg_types:
                     self.parser.reset()
                     b = self.f.read(self.header.size + ctypes.sizeof(IMCHeader) + ctypes.sizeof(IMCFooter))
                     msg = self.parser.parse(b)
@@ -150,8 +166,8 @@ class LSFReader:
 
 
 if __name__ == '__main__':
-    import os, time
     idir = '.'
-    with LSFReader(os.path.join(idir, 'Data.lsf')) as lsf:
-        for msg in lsf.read(msg_types=[pyimc.Announce]):
+    lsf_path = os.path.join(idir, 'Data.lsf')
+    with LSFReader(lsf_path, types=[pyimc.Announce], make_index=True) as lsf:
+        for msg in lsf.read():
             print(msg)
