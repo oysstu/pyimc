@@ -2,6 +2,14 @@ cmake_minimum_required(VERSION 3.0)
 
 SET(PROJ_NAME _pyimc)
 project(${PROJ_NAME})
+
+# Pybind11
+if(MSVC)
+    set(PYBIND11_CPP_STANDARD /std:c++latest)
+else()
+    set(PYBIND11_CPP_STANDARD -std=c++11)
+endif()
+
 add_subdirectory(pybind11)
 
 # Embed DUNE into build, but only build dune-core
@@ -9,7 +17,6 @@ add_subdirectory(dune EXCLUDE_FROM_ALL)
 include_directories(dune/src/)
 include_directories(${CMAKE_BINARY_DIR}/DUNEGeneratedFiles/src)  # Contains generated Config.hpp/Version.cpp files
 set_property(TARGET dune-core PROPERTY POSITION_INDEPENDENT_CODE ON)  # Enable -fPIC on dune-core build
-
 
 # Generate IMC definitions from spec
 add_dependencies(dune-core imc)
@@ -21,12 +28,6 @@ add_library(${PROJ_NAME} MODULE src/pyimc.cpp ${CPP_SRC})
 target_link_libraries(${PROJ_NAME} PRIVATE pybind11::module dune-core)
 set_target_properties(${PROJ_NAME} PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}"
                                          SUFFIX "${PYTHON_MODULE_EXTENSION}")
-
-# Set build parameters
-if(NOT MSVC)
-    # Make sure C++11/14 are enabled
-    target_compile_options(${PROJ_NAME} PUBLIC ${PYBIND11_CPP_STANDARD})
-endif()
 
 _pybind11_add_lto_flags(${PROJ_NAME} THIN_LTO)
 
