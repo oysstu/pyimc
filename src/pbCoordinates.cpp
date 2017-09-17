@@ -14,8 +14,12 @@ void pbCoordinates(py::module &m) {
   py::module c = m.def_submodule("coordinates", "coordinates");
 
   // WGS84 Class
-  py::class_<WGS84>(c, "WGS84")
-      .def_static("distance", &WGS84::distance<double, double>, "Calculate distance between two WGS-84 coordinates (ECEF)");
+  auto wgs84 = py::class_<WGS84>(c, "WGS84");
+  wgs84.def_static("distance", &WGS84::distance<double, double>, "Calculate distance between two WGS-84 coordinates (ECEF)");
+  wgs84.def_static("displace", [](double lat, double lon, double n, double e) {
+    WGS84::displace(n, e, &lat, &lon);
+    return std::make_tuple(lat, lon);
+  }, "lat"_a, "lon"_a,"n"_a, "e"_a, "Displace a WGS-84 coordinate in the NED frame according to given offsets.");
 
   // UTM Class
   auto utm = py::class_<UTM>(c, "UTM");
