@@ -4,12 +4,11 @@ SET(PROJ_NAME _pyimc)
 project(${PROJ_NAME})
 
 # Pybind11
-if(MSVC)
-    set(PYBIND11_CPP_STANDARD /std:c++latest)
-else()
-    set(PYBIND11_CPP_STANDARD -std=c++11)
-endif()
-
+#if(MSVC)
+#    set(PYBIND11_CPP_STANDARD /std:c++latest)
+#else()
+#    set(PYBIND11_CPP_STANDARD -std=c++14)
+#endif()
 add_subdirectory(pybind11)
 
 # Embed DUNE into build, but only build dune-core
