@@ -13,6 +13,17 @@ class WGS84:
     @staticmethod
     def distance(lat1: float, lon1: float, hae1:float, lat2: float, lon2: float, hae2: float) -> float: ...
 
+    @staticmethod
+    def displace(lat: float, lon: float, n: float, e: float) -> Tuple[float, float]:
+        """
+        Displaces the given WGS84 coordinates with the north+east offsets.
+        :param lat: The starting latitude
+        :param lon: The starting longitude
+        :param n: The north offset
+        :param e: The east offset
+        :return: A tuple containing the offset latitude and longitude
+        """
+
 class UTM:
     @staticmethod
     def toWGS84(north: float, east: float, zone: int, in_north_hem: bool) -> Tuple[float, float]:
