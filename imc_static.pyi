@@ -22,12 +22,12 @@ class Message:
     def msg_id(self) -> int: ...
     def serialize(self) -> bytes: ...
     def __init__(self):
-        timestamp = None  # type: float
-        src = None  # type: int
-        src_ent = None  # type: int
-        dst = None  # type: int
-        dst_ent = None  # type: int
-        sub_id = None  # type: int
+        self.timestamp = None  # type: float
+        self.src = None  # type: int
+        self.src_ent = None  # type: int
+        self.dst = None  # type: int
+        self.dst_ent = None  # type: int
+        self.sub_id = None  # type: int
 
 T = TypeVar('T')
 class MessageList(Generic[T]):
