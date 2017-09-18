@@ -61,7 +61,7 @@ class Subscribe(IMCDecoratorBase):
     """
     def __init__(self, *args, **kwargs):
         for arg in args:
-            if arg.__module__ == 'imc':
+            if arg.__module__ == '_pyimc':
                 # Add to __imcsub__
                 try:
                     self.subs.append(arg)

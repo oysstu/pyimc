@@ -23,7 +23,7 @@ class IMCSenderUDP:
         self.sock.close()
 
     def send(self, message, port):
-        if message.__module__ == 'imc':
+        if message.__module__ == '_pyimc':
             b = message.serialize()
             self.sock.sendto(b, (self.dst, port))
         else:
