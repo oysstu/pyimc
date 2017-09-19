@@ -36,6 +36,19 @@ class IMCFooter(ctypes.LittleEndianStructure):
 
 
 class LSFReader:
+    @staticmethod
+    def read(lsf_path: str, types: List[Type[pyimc.Message]] = None, make_index=True):
+        """
+        Read all messages of the specified type(s)
+        :param lsf_path: Path to the lsf file
+        :param types: List of types to return
+        :param make_index: If true, an index is created if it does not already exist
+        :return: Message generator object
+        """
+        with LSFReader(lsf_path, types=types, make_index=make_index) as lsf_reader:
+            for message in lsf_reader.read_message():
+                yield message
+
     def __init__(self, lsf_path: str, types: List[Type[pyimc.Message]] = None, make_index=True):
         """
         Reads an LSF file.
@@ -147,9 +160,11 @@ class LSFReader:
         # Use the heapq.merge function to return sorted iterator of file indices
         return heapq.merge(*idx_iters)
 
-    def read(self):
+    def read_message(self):
         """
-        Returns a generator that yields the messages in the LSF file.
+        Returns a generator that yields the messages in the currently open LSF file.
+        This requires the LSFReader object to be opened using the "with" statement.
+        See read(), where this is done automatically.
         :return:
         """
 
@@ -180,7 +195,5 @@ class LSFReader:
 if __name__ == '__main__':
     idir = '.'
     lsf_path = os.path.join(idir, 'Data.lsf')
-    with LSFReader(lsf_path, types=[pyimc.Announce], make_index=True) as lsf:
-        print('Number of announce messages: ' + str(lsf.count_index(pyimc.Announce)))
-        for msg in lsf.read():
-            print(msg)
+    for msg in LSFReader.read(lsf_path, types=[pyimc.Announce], make_index=True):
+        print(msg)
