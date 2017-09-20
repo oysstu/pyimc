@@ -1,5 +1,5 @@
 import pyimc
-from typing import Generic, TypeVar, Iterable, Union, Tuple
+from typing import Tuple
 
 def toWGS84(estate: pyimc.EstimatedState) -> Tuple[float, float, float]:
     """
@@ -11,7 +11,33 @@ def toWGS84(estate: pyimc.EstimatedState) -> Tuple[float, float, float]:
 
 class WGS84:
     @staticmethod
-    def distance(lat1: float, lon1: float, hae1:float, lat2: float, lon2: float, hae2: float) -> float: ...
+    def distance(lat1: float, lon1: float, hae1:float, lat2: float, lon2: float, hae2: float) -> float:
+        """
+        Calculate distance between two WGS-84 coordinates (ECEF)
+        :param lat1: First latitude
+        :param lon1: First longitude
+        :param hae1: First height above ellipsoid
+        :param lat2: Second latitude
+        :param lon2: Second longitude
+        :param hae2: Second height above ellipsoid
+        :return: scalar distance
+        """
+        ...
+
+    @staticmethod
+    def displacement(lat1: float, lon1: float, hae1:float, lat2: float, lon2: float, hae2: float) -> Tuple[float, float, float]:
+        """
+        "Compute NED displacement between two WGS-84 coordinates"
+        :param lat1: First latitude
+        :param lon1: First longitude
+        :param hae1: First height above ellipsoid
+        :param lat2: Second latitude
+        :param lon2: Second longitude
+        :param hae2: Second height above ellipsoid
+        :return: NED tuple
+        """
+        ...
+
 
     @staticmethod
     def displace(lat: float, lon: float, n: float, e: float) -> Tuple[float, float]:
@@ -23,6 +49,7 @@ class WGS84:
         :param e: The east offset
         :return: A tuple containing the offset latitude and longitude
         """
+        ...
 
 class UTM:
     @staticmethod

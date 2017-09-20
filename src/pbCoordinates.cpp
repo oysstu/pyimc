@@ -15,7 +15,18 @@ void pbCoordinates(py::module &m) {
 
   // WGS84 Class
   auto wgs84 = py::class_<WGS84>(c, "WGS84");
+  // WGS84::distance
   wgs84.def_static("distance", &WGS84::distance<double, double>, "Calculate distance between two WGS-84 coordinates (ECEF)");
+
+  // WGS84::displacement
+  wgs84.def_static("displacement", [](double lat1, double lon1, float hae1,
+                                      double lat2, double lon2, float hae2) {
+    double n, e, d;
+    WGS84::displacement(lat1, lon1, hae1, lat2, lon2, hae2, &n, &e, &d);
+    return std::make_tuple(n, e, d);
+  }, "lat1"_a, "lon1"_a, "hae1"_a, "lat2"_a, "lon2"_a, "hae2"_a, "Compute NED displacement between two WGS-84 coordinates");
+
+  // WGS84::displace
   wgs84.def_static("displace", [](double lat, double lon, double n, double e) {
     WGS84::displace(n, e, &lat, &lon);
     return std::make_tuple(lat, lon);
