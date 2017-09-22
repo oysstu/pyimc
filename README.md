@@ -32,6 +32,8 @@ If an unknown message is parsed, it will be returned as the Message baseclass ra
 Look at minimal_whitelist.cfg for a set of messages that should always be included.
 
 
+#### Recommendations
+- The pyimc library generates stub files for the bindings, meaning that you can have autocomplete and static type checking if your IDE supports them. This can for example be [PyCharm](https://www.jetbrains.com/pycharm/) or [Jedi](https://github.com/davidhalter/jedi)-based editors.
 
 
 #### TODO
