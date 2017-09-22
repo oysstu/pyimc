@@ -34,7 +34,18 @@ class ActorBase(IMCBase):
         self.services = None  # Generated on first announce
         self.heartbeat = []  # type: List[Union[str, int, Tuple[int, str]]]
 
-    def resolve_node_id(self, node_id):
+    def resolve_node_id(self, node_id: Union[int, str, Tuple[int, str], pyimc.Message]) -> IMCNode:
+        """
+        This function searches the map of connected nodes and returns a match (if unique)
+
+        This function can throw the following exceptions
+        KeyError: Node not found (not connected)
+        AmbiguousKeyError: Multiple nodes matches the id (e.g multiple nodes announcing the same name)
+        ValueError: Id parameter has an unexpected type
+        :param node_id: Can be one of the following: imcid(int), imcname(str), node(tuple(int, str)), pyimc.message
+        :return: An instance of the IMCNode class
+        """
+
         # Resolve IMCNode
         id_type = type(node_id)
         if id_type is str or id_type is int:
