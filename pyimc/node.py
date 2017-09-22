@@ -34,6 +34,14 @@ class IMCNode:
         if announce:
             self.update_announce(announce)
 
+    @property
+    def name(self):
+        return self.announce.sys_name if self.announce else None
+
+    @property
+    def id(self):
+        return self.announce.src if self.announce else None
+
     def update_announce(self, msg):
         self.announce = msg
         if msg:
