@@ -55,8 +55,6 @@ class ExampleActor(ActorBase):
         This function is called every ten seconds. Remember that asyncio (and most of python) is single-threaded.
         Doing extensive computations here will halt the event loop. If the UDP buffer fills up this in turn means that
         messages will be lost.
-
-        This function requests the entity state from the target system.
         :return:
         """
         logging.info('Periodic function was executed.')
