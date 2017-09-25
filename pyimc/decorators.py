@@ -75,6 +75,22 @@ class Subscribe(IMCDecoratorBase):
             fn._decorators.append(self)
         except AttributeError:
             fn._decorators = [self]
+
+        # Verify function signature
+        argspec = inspect.getfullargspec(fn)
+        n_args = len(argspec.args) - 1 if 'self' in argspec.args else len(argspec.args)
+        if n_args < 1:
+            raise TypeError('Functions decorated with @Subscribe must have a parameter for the message.')
+
+        n_required_args = n_args - (len(argspec.defaults) if argspec.defaults else 0)
+        if n_required_args > 1:
+            raise TypeError('Functions decorated with @Subscribe can only have one required parameter.')
+
+        # Add typing information if not already defined
+        first_arg = argspec.args[1] if 'self' in argspec.args else argspec.args[0]
+        if first_arg not in argspec.annotations.keys():
+            fn.__annotations__[first_arg] = self.subs[-1]
+
         return fn
 
     def add_event(self, loop, instance, fn):
