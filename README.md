@@ -22,6 +22,8 @@ simply add a folder called dune or imc, respectively, in the top folder. They wi
 python3 setup.py install
 ```
 
+If you use the system python and only want to install for a single user, you can add --user to the install command without needing administrator rights.
+
 
 
 ###### (Optional) Only generate bindings for a subset of IMC messages
