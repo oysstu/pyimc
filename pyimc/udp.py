@@ -49,6 +49,12 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
             sock = get_imc_socket(sock)
             self.instance._port_imc = sock.getsockname()[1]
 
+            # Send an announce immediately after socket is ready (possible speedup in transports)
+            try:
+                self.instance.send_announce()
+            except AttributeError:
+                pass
+
 
     def datagram_received(self, data, addr):
         self.parser.reset()

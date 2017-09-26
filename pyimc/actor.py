@@ -16,6 +16,7 @@ class ActorBase(IMCBase):
     """
     def __init__(self):
         super().__init__()
+        self.t_start = time.time()
 
         # Using a map from (imcadr, sys_name) to the nodes
         self.nodes = {}  # type: Dict[Tuple[int, str], IMCNode]
@@ -149,7 +150,7 @@ class ActorBase(IMCBase):
         """
         # Build imc+udp string
         # TODO: Add TCP protocol for IMC
-        if self._port_imc:
+        if self._port_imc:  # Port must be ready to build IMC service string
             if not self.services:
                 self.services = ['imc+udp://{}:{}/'.format(adr[1], self._port_imc) for adr in get_interfaces()]
                 self.announce.services = ';'.join(self.services)
@@ -157,8 +158,8 @@ class ActorBase(IMCBase):
                 self.announce.set_timestamp_now()
                 for i in range(30100, 30105):
                     s.send(self.announce, i)
-        else:
-            logging.debug('IMC socket not ready')
+        elif (time.time() - self.t_start) > 10:
+            logging.debug('IMC socket not ready')  # Socket should be ready by now.
 
     @Periodic(1)
     def send_heartbeat(self):
