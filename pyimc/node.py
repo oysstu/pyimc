@@ -25,11 +25,10 @@ class IMCService:
 
 class IMCNode:
     def __init__(self, announce=None):
-        self.announce = None  # Updated by Announce
-        self.services = {}  # Updated by Announce
-        self.entities = {}  # Updated by EntityList message
-        self.state = None  # Updated by EntityState message
-        self.heartbeat = None  # Updated by heartbeat message (timestamp)
+        self.announce = None  # type: pyimc.Announce
+        self.services = {}  # type: Dict[str, IMCService]
+        self.entities = {}  # type: Dict[str, int]
+        self.heartbeat = None  # type: float
 
         if announce:
             self.update_announce(announce)
