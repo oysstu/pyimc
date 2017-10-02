@@ -200,8 +200,7 @@ class ActorBase(IMCBase):
     @Periodic(10)
     def print_debug(self):
         # Prints connected nodes every 10 seconds (debugging)
-        # TODO: add time since last announce/heartbeat to log
-        logging.info('Connected nodes: {}'.format(list(self.nodes.keys())))
+        logging.debug('Connected nodes: {}'.format(list(self.nodes.keys())))
 
     @Subscribe(pyimc.Message)
     def unknown_message(self, msg):
@@ -211,7 +210,7 @@ class ActorBase(IMCBase):
             except (KeyError, AmbiguousKeyError):
                 node = 'Unknown'
 
-            logging.info('Unknown message received: {} ({}) from {}'.format(msg.name, msg.id, node))
+            logging.warning('Unknown message received: {} ({}) from {}'.format(msg.name, msg.id, node))
 
 
 if __name__ == '__main__':
