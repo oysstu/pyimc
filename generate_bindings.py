@@ -146,7 +146,7 @@ class IMCPybind(IMC):
                     s.append('\tv{0}.def_readwrite("{1}", &{0}::{1});'.format(m.abbrev, f.abbrev.lower()))
 
             # Inline enums/bitfields
-            enum_fields = [f for f in m.fields if f.values]
+            enum_fields = [f for f in m.fields if f.values and (f.unit == 'Enumerated' or f.unit == 'Bitfield')]
             for f in enum_fields:
                 e = f.get_inline_enum()
                 arit = ', py::arithmetic()' if e.is_bitfield() else ''
