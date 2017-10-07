@@ -301,7 +301,7 @@ class IMCPyi(IMC):
                     self.s.append('\tdef {0}(self, {0}: {1}) -> None: ...'.format(fabbr, self.imctype_pyi[f.type]))
 
             # Inline enums/bitfields
-            enum_fields = [f for f in m.fields if f.values]
+            enum_fields = [f for f in m.fields if f.values and (f.unit == 'Enumerated' or f.unit == 'Bitfield')]
             for f in enum_fields:
                 e = f.get_inline_enum()
                 # Some enumerations start with lower case, use upper case for python name
