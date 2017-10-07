@@ -118,7 +118,6 @@ class ActorBase(IMCBase):
         self.announce.owner = 0xFFFF
         self.announce.src_ent = 1
 
-
         # Set initial entities
         self.entities = {'Daemon': 0, 'Service Announcer': 1}
         self.services = None  # Generated on first announce
@@ -261,7 +260,7 @@ class ActorBase(IMCBase):
                 node = self.resolve_node_id(node_id)
                 self.send(node, hb)
             except AmbiguousKeyError as e:
-                logging.exception(e.msg + '({})'.format(e.choices))
+                logging.exception(str(e) + '({})'.format(e.choices))
             except KeyError as e:
                 pass
 
