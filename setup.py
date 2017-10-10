@@ -107,7 +107,7 @@ class CMakeBuild(build_ext):
 if __name__ == '__main__':
     setup(
         name='pyimc',
-        version='0.1.dev0',
+        version='0.2.dev0',
         author='Oystein Sture, Department of Marine Technology, NTNU',
         author_email='oystein.sture@ntnu.no',
         description='Python bindings for DUNE-IMC',
