@@ -15,6 +15,9 @@ add_subdirectory(pybind11)
 add_subdirectory(dune EXCLUDE_FROM_ALL)
 include_directories(dune/src/)
 include_directories(${CMAKE_BINARY_DIR}/DUNEGeneratedFiles/src)  # Contains generated Config.hpp/Version.cpp files
+if(MSVC)
+    include_directories(dune/vendor/libraries/pthreads-win32)
+endif()
 set_property(TARGET dune-core PROPERTY POSITION_INDEPENDENT_CODE ON)  # Enable -fPIC on dune-core build
 
 # Generate IMC definitions from spec
@@ -24,7 +27,13 @@ add_dependencies(dune-core imc)
 FILE(GLOB_RECURSE CPP_SRC src pb*.cpp)
 
 add_library(${PROJ_NAME} MODULE src/pyimc.cpp ${CPP_SRC})
-target_link_libraries(${PROJ_NAME} PRIVATE pybind11::module dune-core)
+
+if(MSVC)
+    target_link_libraries(${PROJ_NAME} PRIVATE pybind11::module dune-core ws2_32)
+else()
+    target_link_libraries(${PROJ_NAME} PRIVATE pybind11::module dune-core)
+endif()
+
 set_target_properties(${PROJ_NAME} PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}"
                                          SUFFIX "${PYTHON_MODULE_EXTENSION}")
 
