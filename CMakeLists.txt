@@ -3,13 +3,11 @@ cmake_minimum_required(VERSION 3.0)
 SET(PROJ_NAME _pyimc)
 project(${PROJ_NAME})
 
-# Pybind11
-#if(MSVC)
-#    set(PYBIND11_CPP_STANDARD /std:c++latest)
-#else()
-#    set(PYBIND11_CPP_STANDARD -std=c++14)
-#endif()
 add_subdirectory(pybind11)
+
+#######################################################
+##                     DUNE                          ##
+#######################################################
 
 # Embed DUNE into build, but only build dune-core
 add_subdirectory(dune EXCLUDE_FROM_ALL)
@@ -20,8 +18,18 @@ if(MSVC)
 endif()
 set_property(TARGET dune-core PROPERTY POSITION_INDEPENDENT_CODE ON)  # Enable -fPIC on dune-core build
 
+
+#######################################################
+##                      IMC                          ##
+#######################################################
+
 # Generate IMC definitions from spec
 add_dependencies(dune-core imc)
+
+
+#######################################################
+##                   Source/Libs                     ##
+#######################################################
 
 # Find all source files starting with pb
 FILE(GLOB_RECURSE CPP_SRC src pb*.cpp)
@@ -36,6 +44,11 @@ endif()
 
 set_target_properties(${PROJ_NAME} PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}"
                                          SUFFIX "${PYTHON_MODULE_EXTENSION}")
+
+
+#######################################################
+##                     Pybind11                      ##
+#######################################################
 
 _pybind11_add_lto_flags(${PROJ_NAME} THIN_LTO)
 
