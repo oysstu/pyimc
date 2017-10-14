@@ -1,4 +1,4 @@
-import os, re, sys, platform, subprocess, shutil, urllib.request, zipfile, io
+import os, re, sys, platform, subprocess, shutil, urllib.request, zipfile, io, hashlib
 
 from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
@@ -6,11 +6,13 @@ from distutils.version import LooseVersion
 
 from generate_bindings import IMCPybind, IMCPyi
 
+
 class CMakeExtension(Extension):
     def __init__(self, name, sourcedir='', subdir=''):
         Extension.__init__(self, name, sources=[])
         self.sourcedir = os.path.abspath(sourcedir)
         self.subdir = subdir
+
 
 class CMakeBuild(build_ext):
     def run(self):
@@ -88,9 +90,29 @@ class CMakeBuild(build_ext):
                 whitelist = [x.strip().lower() for x in f.readlines() if x.strip() and not x.startswith('#')]
                 print('Generating IMC bindings using whitelist.cfg.')
 
-        print('Generating python bindings.')
-        pb = IMCPybind(os.path.join(imc_dir, 'IMC.xml'), whitelist=whitelist)
-        pb.write_bindings()
+        # Generate md5 of IMC spec
+        imc_xml = os.path.join(imc_dir, 'IMC.xml')
+        with open(imc_xml, 'rb') as f:
+            b_imc_xml = f.read()
+        md5 = hashlib.md5()
+        md5.update(b_imc_xml)
+        imc_md5 = md5.hexdigest()
+
+        # Check for previous md5 and compare
+        already_generated = False
+        md5_path = os.path.join('src', 'generated', 'imc.md5')
+        if os.path.exists(md5_path):
+            with open(md5_path, 'rt') as f:
+                imc_md5_current = f.read()
+
+            if imc_md5_current == imc_md5:
+                already_generated = True
+
+        # Generate bindings if necessary
+        if not already_generated:
+            print('Generating python bindings.')
+            pb = IMCPybind(imc_xml, whitelist=whitelist)
+            pb.write_bindings()
 
         print('Generating stub file for typing hints.')
         pyi = IMCPyi(os.path.join(imc_dir, 'IMC.xml'), whitelist=whitelist)
@@ -102,6 +124,11 @@ class CMakeBuild(build_ext):
 
         # Copy pyi file to out dir
         shutil.move('_pyimc.pyi', os.path.join(extdir, '_pyimc.pyi'))
+
+        # Build was successful, write imc md5
+        with open(md5_path, 'wt') as f:
+            f.write(imc_md5)
+
 
 
 if __name__ == '__main__':
