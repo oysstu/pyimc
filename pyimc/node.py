@@ -24,11 +24,15 @@ class IMCService:
 
 
 class IMCNode:
-    def __init__(self, announce=None):
+    def __init__(self, announce=None, service_to_subscribe_to = None):
         self.announce = None  # type: pyimc.Announce
         self.services = {}  # type: Dict[str, IMCService]
         self.entities = {}  # type: Dict[str, int]
         self.heartbeat = None  # type: float
+        self.service_to_subscribe_to = 'imc+udp' # Default service. Can be overridden.
+
+        if service_to_subscribe_to:
+            self.service_to_subscribe_to = service_to_subscribe_to
 
         if announce:
             self.update_announce(announce)
@@ -68,9 +72,9 @@ class IMCNode:
         :return: 
         """
         # TODO: Verify that UDP service exists, add TCP
-        imcudp_services = self.services['imc+udp']  # TODO: How to select interface if multiple imc services announced?
+        imcudp_services = self.services[self.service_to_subscribe_to]  # TODO: How to select interface if multiple imc services announced?
         if not imcudp_services:
-            logging.error('{} does not expose an imc+udp service'.format(self))
+            logging.error('{} does not expose an imc+udp+pylive service'.format(self))
             return
 
         # TODO: Try to determine which service to use, for now use first svc

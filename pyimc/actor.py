@@ -18,6 +18,7 @@ class IMCBase:
         self._subs = {}  # type: Dict[Exception, List[types.MethodType]]
         self._port_imc = None  # type: int
         self._port_mc = None  # type: int
+        self.service_to_subscribe_to = None  # type: string
 
     def _start_subscriptions(self):
         # Add datagram endpoint for multicast announce
@@ -199,7 +200,7 @@ class ActorBase(IMCBase):
                 logging.warning('Multiple nodes are announcing the same IMC address or name: {} and {}'.format(key, key_imcadr))
 
             # New node
-            self.nodes[key] = IMCNode(msg)
+            self.nodes[key] = IMCNode(msg, self.service_to_subscribe_to)
 
         if not self.nodes[key].entities:
             q_ent = pyimc.EntityList()
