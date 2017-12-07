@@ -88,7 +88,4 @@ class IMCNode:
 
 
 if __name__ == '__main__':
-    # Test service parsing
-    x = 'dune://0.0.0.0/uid/431358805411;dune://0.0.0.0/version/2017.01.0;ftp://192.168.1.3:30021/;http://192.168.1.3:8080/dune;imc+info://0.0.0.0/version/5.4.11;imc+udp://192.168.1.3:6002/'
-    s = [IMCService(y) for y in x.split(';')]
-    print(s[-1].ip, s[-1].port)
+    pass

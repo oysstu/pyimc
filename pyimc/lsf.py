@@ -193,7 +193,4 @@ class LSFReader:
 
 
 if __name__ == '__main__':
-    idir = '.'
-    lsf_path = os.path.join(idir, 'Data.lsf')
-    for msg in LSFReader.read(lsf_path, types=[pyimc.Announce], make_index=True):
-        print(msg)
+    pass

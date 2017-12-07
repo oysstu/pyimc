@@ -303,15 +303,5 @@ class ActorBase(IMCBase):
 
 
 if __name__ == '__main__':
-    # Setup logging level and console output
-    logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
-
-    class ActorChild(ActorBase):
-        def __init__(self):
-            super().__init__()
-
-    # Run actor
-    x = ActorBase()
-    x.heartbeat.append('lauv-simulator-1')
-    x.run()
+    pass
 

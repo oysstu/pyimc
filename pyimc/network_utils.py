@@ -20,5 +20,4 @@ def get_interfaces(ignore_local=True):
 
 
 if __name__ == '__main__':
-    i = get_interfaces(ignore_local=False)
-    print(i)
+    pass
