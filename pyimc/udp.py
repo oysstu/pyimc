@@ -2,6 +2,7 @@ import socket, struct, asyncio, logging
 import pyimc
 from pyimc.common import multicast_ip
 
+logger = logging.getLogger('pyimc.udp')
 
 class IMCSenderUDP:
     def __init__(self, ip_dst, local_port=None):
@@ -75,14 +76,14 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
             except KeyError:
                 pass
         else:
-            logging.warning('Received IMC message that was not a subclass of pyimc.Message')
+            logger.warning('Received IMC message that was not a subclass of pyimc.Message')
 
     def error_received(self, exc):
-        logging.error('Error received: {}'.format(exc))
+        logger.error('Error received: {}'.format(exc))
 
     def connection_lost(self, exc):
         # TODO: Reestablish connection?
-        logging.debug('Lost connection {}'.format(exc))
+        logger.debug('Lost connection {}'.format(exc))
 
 
 def get_multicast_socket(sock=None):

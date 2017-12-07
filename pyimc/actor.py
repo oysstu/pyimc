@@ -9,6 +9,7 @@ from pyimc.network_utils import get_interfaces
 from pyimc.node import IMCNode
 from pyimc.exception import AmbiguousKeyError
 
+logger = logging.getLogger('pyimc.actor')
 
 class IMCBase:
     def __init__(self):
@@ -64,14 +65,14 @@ class IMCBase:
         Cancels all running tasks and stops the event loop.
         :return:
         """
-        logging.info('Stop called by user. Cancelling all running tasks.')
+        logger.info('Stop called by user. Cancelling all running tasks.')
         for task in asyncio.Task.all_tasks():
             task.cancel()
 
         loop = self._loop
         @asyncio.coroutine
         def exit():
-            logging.info('Tasks cancelled. Stopping event loop.')
+            logger.info('Tasks cancelled. Stopping event loop.')
             loop.stop()
 
         asyncio.ensure_future(exit())
@@ -196,7 +197,7 @@ class ActorBase(IMCBase):
             # If the key is new, check for duplicate names/imc addresses
             key_imcadr = [x for x in self.nodes.keys() if x[0] == key[0] or x[1] == key[1]]
             if key_imcadr:
-                logging.warning('Multiple nodes are announcing the same IMC address or name: {} and {}'.format(key, key_imcadr))
+                logger.warning('Multiple nodes are announcing the same IMC address or name: {} and {}'.format(key, key_imcadr))
 
             # New node
             self.nodes[key] = IMCNode(msg)
@@ -222,7 +223,7 @@ class ActorBase(IMCBase):
                 self.send(node, ent_lst)
         except (AmbiguousKeyError, KeyError):
             errstr = 'receiving' if msg.op == OpEnum.REPORT else 'sending'
-            logging.debug('Unable to resolve node when ' + errstr + ' EntityList')
+            logger.debug('Unable to resolve node when ' + errstr + ' EntityList')
             pass
 
     @Subscribe(pyimc.Heartbeat)
@@ -247,7 +248,7 @@ class ActorBase(IMCBase):
                 for i in range(30100, 30105):
                     s.send(self.announce, i)
         elif (time.time() - self.t_start) > 10:
-            logging.debug('IMC socket not ready')  # Socket should be ready by now.
+            logger.debug('IMC socket not ready')  # Socket should be ready by now.
 
     @Periodic(1)
     def send_heartbeat(self):
@@ -260,7 +261,7 @@ class ActorBase(IMCBase):
                 node = self.resolve_node_id(node_id)
                 self.send(node, hb)
             except AmbiguousKeyError as e:
-                logging.exception(str(e) + '({})'.format(e.choices))
+                logger.exception(str(e) + '({})'.format(e.choices))
             except KeyError as e:
                 pass
 
@@ -275,7 +276,7 @@ class ActorBase(IMCBase):
             has_heartbeat = type(node.heartbeat) is float and t - node.heartbeat < 60
             has_announce = type(node.announce) is pyimc.Announce and t - node.announce.timestamp < 60
             if not (has_heartbeat or has_announce):
-                logging.info('Connection to node "{}" timed out'.format(node))
+                logger.info('Connection to node "{}" timed out'.format(node))
                 rm_nodes.append(node)
 
         for node in rm_nodes:
@@ -283,12 +284,12 @@ class ActorBase(IMCBase):
                 key = (node.announce.src, node.announce.sys_name)
                 del self.nodes[key]
             except (KeyError, AttributeError) as e:
-                logging.exception('Encountered exception when removing node: {}'.format(e.msg))
+                logger.exception('Encountered exception when removing node: {}'.format(e.msg))
 
     @Periodic(10)
     def print_debug(self):
         # Prints connected nodes every 10 seconds (debugging)
-        logging.debug('Connected nodes: {}'.format(list(self.nodes.keys())))
+        logger.debug('Connected nodes: {}'.format(list(self.nodes.keys())))
 
     @Subscribe(pyimc.Message)
     def unknown_message(self, msg):
@@ -298,7 +299,7 @@ class ActorBase(IMCBase):
             except (KeyError, AmbiguousKeyError):
                 node = 'Unknown'
 
-            logging.warning('Unknown message received: {} ({}) from {}'.format(msg.name, msg.id, node))
+            logger.warning('Unknown message received: {} ({}) from {}'.format(msg.name, msg.id, node))
 
 
 if __name__ == '__main__':
