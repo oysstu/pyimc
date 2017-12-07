@@ -1,10 +1,12 @@
-from urllib.parse import urlparse
 import logging
+import ipaddress as ip
+from urllib.parse import urlparse
 
 from pyimc.udp import IMCSenderUDP
 from pyimc.network_utils import get_interfaces
 
 logger = logging.getLogger('pyimc.node')
+
 
 class IMCService:
     def __init__(self, service_string):
@@ -25,7 +27,12 @@ class IMCService:
 
 
 class IMCNode:
-    def __init__(self, announce=None):
+    def __init__(self, announce=None, service_filter=('imc+udp',)):
+        """
+
+        :param announce:
+        :param services:
+        """
         self.announce = None  # type: pyimc.Announce
         self.services = {}  # type: Dict[str, IMCService]
         self.entities = {}  # type: Dict[str, int]
@@ -68,17 +75,29 @@ class IMCNode:
         :param msg: The IMC message to send
         :return: 
         """
-        # TODO: Verify that UDP service exists, add TCP
-        imcudp_services = self.services['imc+udp']  # TODO: How to select interface if multiple imc services announced?
+
+        imcudp_services = self.services['imc+udp']
         if not imcudp_services:
             logger.error('{} does not expose an imc+udp service'.format(self))
             return
 
-        # TODO: Try to determine which service to use, for now use first svc
+        # Determine which service to send to based on ip/netmask
+        # Note: this might not account for funky ip routing
+        networks = [ip.ip_interface(x[1] + '/' + x[2]).network for x in get_interfaces()]
         for svc in imcudp_services:
-            with IMCSenderUDP(svc.ip) as s:
-                s.send(message=msg, port=svc.port)
-                break
+            svc_ip = ip.ip_address(svc.ip)
+            if any([svc_ip in network for network in networks]):
+                with IMCSenderUDP(svc.ip) as s:
+                    s.send(message=msg, port=svc.port)
+                return
+
+        # If this point is reached no local interfaces has the target system in its netmask
+        # Could be running on same system with no available interfaces
+        # Send on loopback
+        ports = [svc.port for svc in imcudp_services]
+        with IMCSenderUDP('127.0.0.1') as s:
+            for port in ports:
+                s.send(message=msg, port=port)
 
     def __str__(self):
         return 'IMCNode(0x{:X}, {})'.format(self.announce.src, self.announce.sys_name)
