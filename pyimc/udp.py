@@ -102,11 +102,15 @@ def get_multicast_socket(sock=None):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     # Allow receiving multicast broadcasts (subscribe to multicast group)
-    mreq = struct.pack('4sL', socket.inet_aton(multicast_ip), socket.INADDR_ANY)
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    try:
+        mreq = struct.pack('4sL', socket.inet_aton(multicast_ip), socket.INADDR_ANY)
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
-    # Do not loop back own messages
-    sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_LOOP, 0)
+        # Do not loop back own messages
+        sock.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_LOOP, 0)
+    except OSError as e:
+        logger.error('Unable to obtain socket with multicast enabled.')
+        raise e
 
     port = None
     for i in range(30100, 30105):
