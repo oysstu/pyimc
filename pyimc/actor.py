@@ -240,9 +240,12 @@ class ActorBase(IMCBase):
         # Build imc+udp string
         # TODO: Add TCP protocol for IMC
         if self._port_imc:  # Port must be ready to build IMC service string
+            self.services = ['imc+udp://{}:{}/'.format(adr[1], self._port_imc) for adr in get_interfaces()]
             if not self.services:
-                self.services = ['imc+udp://{}:{}/'.format(adr[1], self._port_imc) for adr in get_interfaces()]
-                self.announce.services = ';'.join(self.services)
+                # No external interfaces available, announce localhost/loopback
+                self.services = ['imc+udp://{}:{}/'.format(adr[1], self._port_imc) for adr in get_interfaces(False)]
+
+            self.announce.services = ';'.join(self.services)
             with IMCSenderUDP(multicast_ip) as s:
                 self.announce.set_timestamp_now()
                 for i in range(30100, 30105):
