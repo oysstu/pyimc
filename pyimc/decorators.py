@@ -5,14 +5,9 @@ for subscribing to certain messages or perform periodic tasks through the same e
 
 import asyncio
 import sys
-import types
-import socket
 import inspect
-import logging
-from contextlib import suppress
+import time
 from typing import Dict, List, Tuple, Type, Union
-
-from pyimc.udp import IMCProtocolUDP
 
 
 class IMCDecoratorBase:
@@ -57,9 +52,13 @@ class Periodic(IMCDecoratorBase):
 
         @asyncio.coroutine
         def periodic_fn():
+            # If coroutine yield from else call normally
+            is_coroutine = asyncio.iscoroutinefunction(fn)
+
             while True:
-                fn()
-                yield from asyncio.sleep(self.time)
+                last_exec = time.time()
+                (yield from fn()) if is_coroutine else fn()
+                yield from asyncio.sleep(max(0, self.time + last_exec - time.time()))
 
         super().add_event(loop, instance, periodic_fn())
 
