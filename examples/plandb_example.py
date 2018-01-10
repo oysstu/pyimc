@@ -4,10 +4,9 @@ This example illustrates how to send a request for the plan database from a syst
 
 import logging
 import sys
-from typing import Tuple
 
 import pyimc
-from pyimc.actor import ActorBase
+from pyimc.actors import ActorBase
 from pyimc.decorators import Periodic, Subscribe
 
 

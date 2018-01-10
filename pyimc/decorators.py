@@ -105,5 +105,45 @@ class Subscribe(IMCDecoratorBase):
         pass
 
 
+class RunOnce(IMCDecoratorBase):
+    """
+    Calls the decorated function once after start, at an optional time delay
+    This can e.g. be used with coroutines to implement periodic functions with variable wait
+    """
+    def __init__(self, delay: float = 0.0):
+        self.delay = delay
+
+    def __call__(self, fn, *args, **kwargs):
+        try:
+            fn._decorators.append(self)
+        except AttributeError:
+            fn._decorators = [self]
+        return fn
+
+    def add_event(self, loop, instance, fn):
+        """
+        Wraps the given function in a corutine and calls it at a given time delay
+        :param loop: The event loop (cls._loop)
+        :param instance: The instantiated class
+        :param fn: The function to be called
+        :return: None
+        """
+        # Verify function signature
+        argspec = inspect.getfullargspec(fn)
+        n_args = len(argspec.args) - 1 if 'self' in argspec.args else len(argspec.args)
+        n_required_args = n_args - (len(argspec.defaults) if argspec.defaults else 0)
+        assert n_required_args == 0, 'Functions decorated with @Periodic cannot have any required parameters.'
+
+        @asyncio.coroutine
+        def run_once_fn():
+            # If coroutine yield from else call normally
+            is_coroutine = asyncio.iscoroutinefunction(fn)
+
+            yield from asyncio.sleep(self.delay)
+            (yield from fn()) if is_coroutine else fn()
+
+        super().add_event(loop, instance, run_once_fn())
+
+
 if __name__ == '__main__':
     pass

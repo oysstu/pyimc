@@ -56,27 +56,11 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
             except AttributeError:
                 pass
 
-
     def datagram_received(self, data, addr):
         self.parser.reset()
         p = self.parser.parse(data)
-        if pyimc.Message in type(p).__bases__:
-            try:
-                for fn in self.instance._subs[type(p)]:
-                    fn(p)
-                for fn in self.instance._subs[pyimc.Message]:
-                    fn(p)
-            except KeyError:
-                pass
-        elif type(p) is pyimc.Message:
-            # Subscriptions to pyimc.Message receives all messages
-            try:
-                for fn in self.instance._subs[pyimc.Message]:
-                    fn(p)
-            except KeyError:
-                pass
-        else:
-            logger.warning('Received IMC message that was not a subclass of pyimc.Message')
+        if p is not None:
+            self.instance.post_message(p)
 
     def error_received(self, exc):
         logger.error('Error received: {}'.format(exc))
@@ -115,8 +99,6 @@ def get_multicast_socket(sock=None):
     port = None
     for i in range(30100, 30105):
         try:
-            # Binding to 0.0.0.0 results in multiple messages if there is multiple interfaces available
-            # Kept as-is to avoid losing messages
             sock.bind(('0.0.0.0', i))
             port = i
             break

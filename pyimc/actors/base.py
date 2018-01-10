@@ -1,15 +1,19 @@
-import socket, logging, time
+import socket, logging
+import asyncio
 from operator import itemgetter
-from typing import Dict, Tuple, Union
+from contextlib import suppress
+import types
+from typing import Dict, List, Tuple
 
 import pyimc
 from pyimc.decorators import *
-from pyimc.udp import IMCSenderUDP, multicast_ip
-from pyimc.network_utils import get_interfaces
+from pyimc.network.udp import IMCSenderUDP, multicast_ip, IMCProtocolUDP
+from pyimc.network.utils import get_interfaces
 from pyimc.node import IMCNode
 from pyimc.exception import AmbiguousKeyError
 
-logger = logging.getLogger('pyimc.actor')
+logger = logging.getLogger('pyimc.actors.base')
+
 
 class IMCBase:
     def __init__(self):
@@ -70,6 +74,7 @@ class IMCBase:
             task.cancel()
 
         loop = self._loop
+
         @asyncio.coroutine
         def exit():
             logger.info('Tasks cancelled. Stopping event loop.')
@@ -99,6 +104,30 @@ class IMCBase:
         finally:
             self._loop.close()
 
+    def post_message(self, msg: pyimc.Message):
+        """
+        Post a message to the subscribed functions
+        :param msg: The IMC message to post
+        :return:
+        """
+        if pyimc.Message in type(msg).__bases__:
+            try:
+                for fn in self._subs[type(msg)]:
+                    fn(msg)
+                for fn in self._subs[pyimc.Message]:
+                    fn(msg)
+            except KeyError:
+                pass
+        elif type(msg) is pyimc.Message:
+            # Subscriptions to pyimc.Message receives all messages
+            try:
+                for fn in self._subs[pyimc.Message]:
+                    fn(msg)
+            except KeyError:
+                pass
+        else:
+            logger.warning('Unknown IMC message received: {} ({}) from {}'.format(msg.msg_name, msg.msg_id, msg.src))
+
 
 class ActorBase(IMCBase):
     """
@@ -119,12 +148,12 @@ class ActorBase(IMCBase):
         self.announce.owner = 0xFFFF
         self.announce.src_ent = 1
 
-        # Set initial entities
+        # Set initial entities (services generated on first announce)
         self.entities = {'Daemon': 0, 'Service Announcer': 1}
-        self.services = None  # Generated on first announce
+        self.services = None  # type: List[str]
         self.heartbeat = []  # type: List[Union[str, int, Tuple[int, str]]]
 
-    def resolve_node_id(self, node_id: Union[int, str, Tuple[int, str], pyimc.Message]) -> IMCNode:
+    def resolve_node_id(self, node_id: Union[int, str, Tuple[int, str], pyimc.Message, IMCNode]) -> IMCNode:
         """
         This function searches the map of connected nodes and returns a match (if unique)
 
@@ -184,9 +213,11 @@ class ActorBase(IMCBase):
     def recv_announce(self, msg):
         # TODO: Check if IP of a node changes
 
-        # Return if announce originates from this ccu
-        if msg.src == self.announce.src and msg.sys_name == self.announce.sys_name:
-            # TODO: Check if another node is broadcasting our ID
+        # Return if announce originates from this ccu or on duplicate IMC id
+        if msg.src == self.announce.src:
+            # Is another system broadcasting our IMC id?
+            if msg.sys_name != self.announce.sys_name:
+                logger.warning('Another system is announcing the same IMC id ({})'.format(msg.sys_name))
             return
 
         # Update announce
@@ -209,7 +240,7 @@ class ActorBase(IMCBase):
 
     @Subscribe(pyimc.EntityList)
     def recv_entity_list(self, msg):
-        OpEnum = pyimc.EntityList.OperationEnum  # type: class
+        OpEnum = pyimc.EntityList.OperationEnum
         try:
             node = self.resolve_node_id(msg)
             if msg.op == OpEnum.REPORT:
@@ -293,16 +324,6 @@ class ActorBase(IMCBase):
     def print_debug(self):
         # Prints connected nodes every 10 seconds (debugging)
         logger.debug('Connected nodes: {}'.format(list(self.nodes.keys())))
-
-    @Subscribe(pyimc.Message)
-    def unknown_message(self, msg):
-        if type(msg) is pyimc.Message:
-            try:
-                node = self.resolve_node_id(msg)
-            except (KeyError, AmbiguousKeyError):
-                node = 'Unknown'
-
-            logger.warning('Unknown message received: {} ({}) from {}'.format(msg.name, msg.id, node))
 
 
 if __name__ == '__main__':

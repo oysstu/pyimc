@@ -2,8 +2,8 @@ import logging
 import ipaddress as ip
 from urllib.parse import urlparse
 
-from pyimc.udp import IMCSenderUDP
-from pyimc.network_utils import get_interfaces
+from pyimc.network.udp import IMCSenderUDP
+from pyimc.network.utils import get_interfaces
 
 logger = logging.getLogger('pyimc.node')
 

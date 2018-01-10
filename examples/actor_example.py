@@ -12,7 +12,7 @@ import sys
 from typing import Tuple
 
 import pyimc
-from pyimc.actor import ActorBase
+from pyimc.actors import ActorBase
 from pyimc.decorators import Periodic, Subscribe
 
 

@@ -143,7 +143,7 @@ if __name__ == '__main__':
         description='Python bindings for DUNE-IMC',
         license='MIT',
         long_description='',
-        packages=['pyimc', 'pyimc.coordinates', 'pyimc.algorithms'],
+        packages=['pyimc', 'pyimc.actors', 'pyimc.algorithms', 'pyimc.coordinates', 'pyimc.network'],
         python_requires='>=3.4',
         install_requires=['netifaces', 'typing'],
         package_data={'': ['_pyimc.pyi'],
