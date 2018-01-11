@@ -4,7 +4,7 @@ from setuptools import setup, Extension
 from setuptools.command.build_ext import build_ext
 from distutils.version import LooseVersion
 
-from generate_bindings import IMCPybind, IMCPyi
+from utils.generate_bindings import IMCPybind, IMCPyi
 
 
 class CMakeExtension(Extension):

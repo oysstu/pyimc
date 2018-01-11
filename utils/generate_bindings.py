@@ -2,7 +2,7 @@ import argparse
 import os
 import string
 
-from imc_schema import IMC
+from .imc_schema import IMC
 
 
 # C++ template code for InlineMessage fields
@@ -240,7 +240,7 @@ class IMCPyi(IMC):
         self.write_supertypes()
         self.write_messages()
 
-        with open('imc_static.pyi', 'rt') as fi, open('_pyimc.pyi', 'wt') as fo:
+        with open('utils/imc_static.pyi', 'rt') as fi, open('_pyimc.pyi', 'wt') as fo:
             fo.write(fi.read())
             fo.write('\n'.join(self.s))
 
