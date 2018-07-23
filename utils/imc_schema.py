@@ -227,6 +227,15 @@ class IMCField:
         """
         return imctype_sz[self.type]
 
+    def is_enum(self) -> bool:
+        return self.unit == 'Enumerated'
+
+    def is_bitfield(self) -> bool:
+        return self.unit == 'Bitfield'
+
+    def is_inline_enum(self) -> bool:
+        return bool(self.values)
+
     def get_inline_enum(self):
         # Return inline enum seperately (defined outside _fields_)
         if self.values:
@@ -240,6 +249,7 @@ class IMCField:
             en.type = self.type
             en.is_inline = True
             return en
+
 
 class IMCEnum:
     """

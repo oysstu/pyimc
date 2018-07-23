@@ -32,6 +32,15 @@ v{message}.def_property("{field}",
     []({message} &x, py::bytes &b){{bytes_to_vector(b, x.{field});}}, py::return_value_policy::take_ownership);
 """
 
+# C++ template for enumerated fields
+enumfield_template = """
+v{message}.def_property("{field}",
+    [](const {message} &x){{return static_cast<{enum}>(x.{field});}},
+    []({message} *x, const {enum_ctype} &y){{x->{field} = y;}},
+    "{description}");
+"""
+
+
 class IMCPybind(IMC):
     """
     Generates python bindings for DUNE+IMC using pybind11.
@@ -122,7 +131,8 @@ class IMCPybind(IMC):
 
             include = self.common_include + ['DUNE/IMC/Message.hpp',
                                              'DUNE/IMC/SuperTypes.hpp',
-                                             'DUNE/IMC/Definitions.hpp']
+                                             'DUNE/IMC/Definitions.hpp',
+                                             'DUNE/IMC/Enumerations.hpp']
             s = ['#include <{}>'.format(x) for x in include]
             s.append('#include "../pbUtils.hpp"')
             s += self.common_namespace
@@ -142,11 +152,22 @@ class IMCPybind(IMC):
                                                                     field=f.abbrev.lower(),
                                                                     inline_type=inline_type)
                     s.extend(['\t' + x for x in inline_message.splitlines()])
+                elif f.is_enum():
+                    if f.is_inline_enum():
+                        cppname = m.abbrev + '::' + f.name.replace(' ', '') + 'Enum'
+                    else:
+                        cppname = f.enum_def
+
+                    enum_field = enumfield_template.format(message=m.abbrev,
+                                                           field=f.abbrev.lower(),
+                                                           enum_ctype=f.type,
+                                                           enum=cppname)
+                    s.extend(['\t' + x for x in enum_field.splitlines()])
                 else:
                     s.append('\tv{0}.def_readwrite("{1}", &{0}::{1});'.format(m.abbrev, f.abbrev.lower()))
 
             # Inline enums/bitfields
-            enum_fields = [f for f in m.fields if f.values and (f.unit == 'Enumerated' or f.unit == 'Bitfield')]
+            enum_fields = [f for f in m.fields if f.is_inline_enum() and (f.unit == 'Enumerated' or f.unit == 'Bitfield')]
             for f in enum_fields:
                 e = f.get_inline_enum()
                 arit = ', py::arithmetic()' if e.is_bitfield() else ''
@@ -307,6 +328,7 @@ class IMCPyi(IMC):
                 # Some enumerations start with lower case, use upper case for python name
                 pyname = string.capwords(e.name.replace('_', ' ')).replace(' ', '')
                 pyname += 'Bits' if e.is_bitfield() else 'Enum'
+
                 self.s.append('\tclass {0}:'.format(pyname))
                 for v in e.values:
                     # Fields starting with digits is invalid in Python, prepend underscore
@@ -317,6 +339,7 @@ class IMCPyi(IMC):
                 self.s.append('\tpass')
 
             self.s.append('')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate IMC pybind11 wrapper code.')
