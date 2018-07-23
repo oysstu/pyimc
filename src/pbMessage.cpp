@@ -91,6 +91,5 @@ void pbMessage(py::module &m) {
             .def_property("src_ent", &Message::getSourceEntity, &Message::setSourceEntity)
             .def_property("dst", &Message::getDestination, &Message::setDestination)
             .def_property("dst_ent", &Message::getDestinationEntity, &Message::setDestinationEntity)
-            .def_property("sub_id", &Message::getSubId, &Message::setSubId)
             .def("serialize", &fserialize);
 }
