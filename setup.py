@@ -146,6 +146,7 @@ if __name__ == '__main__':
         packages=['pyimc', 'pyimc.actors', 'pyimc.algorithms', 'pyimc.coordinates', 'pyimc.network'],
         python_requires='>=3.4',
         install_requires=['netifaces', 'typing'],
+        extras_require={'LSFExporter': ['pandas']},
         package_data={'': ['_pyimc.pyi'],
                       'pyimc.coordinates': ['*.pyi'],
                       'pyimc.algorithms': ['*.pyi']},
