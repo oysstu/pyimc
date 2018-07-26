@@ -161,7 +161,9 @@ class IMCPybind(IMC):
                     enum_field = enumfield_template.format(message=m.abbrev,
                                                            field=f.abbrev.lower(),
                                                            enum_ctype=f.type,
-                                                           enum=cppname)
+                                                           enum=cppname,
+                                                           description='')
+
                     s.extend(['\t' + x for x in enum_field.splitlines()])
                 else:
                     s.append('\tv{0}.def_readwrite("{1}", &{0}::{1});'.format(m.abbrev, f.abbrev.lower()))
