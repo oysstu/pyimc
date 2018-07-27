@@ -32,7 +32,9 @@ void pbCoordinates(py::module &m) {
     return std::make_tuple(lat, lon);
   }, "lat"_a, "lon"_a,"n"_a, "e"_a, "Displace a WGS-84 coordinate in the NED frame according to given offsets.");
 
-  // UTM Class
+
+  // UTM Class (optional)
+#ifdef DUNE_COORDINATES_UTM_HPP_INCLUDED_
   auto utm = py::class_<UTM>(c, "UTM");
 
   utm.def_static("toWGS84", [](double north, double east, int zone, bool in_north_hem) {
@@ -46,6 +48,7 @@ void pbCoordinates(py::module &m) {
     UTM::fromWGS84(lat, lon, &n, &e, &zone, &in_north_hem);
     return std::make_tuple(n, e, zone, in_north_hem);
   }, "lat"_a, "lon"_a, "Calculate UTM coordinates. Zone selected automatically. Returns (n, e, zone, in_north_hem)");
+#endif
 
 
   // Top-level functions
