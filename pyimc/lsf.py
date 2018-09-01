@@ -292,7 +292,6 @@ class LSFExporter:
 
             if imc_type is pyimc.EstimatedState:
                 df[['lat', 'lon', 'height']] = extra
-                df[['lat', 'lon', 'phi', 'theta', 'psi']] *= 180/math.pi
                 del df['x'], df['y'], df['z']
 
             return df
