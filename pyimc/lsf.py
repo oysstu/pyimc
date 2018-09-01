@@ -216,6 +216,8 @@ class LSFExporter:
 
         # Metadata
         self.log_name = None  # type: str
+        self.logging_system_id = None  # type: int
+        self.logging_system_name = None  # type: str
         self.node_map = {}  # type: Dict[int, str]
         self.entity_map = {}  # type: Dict[Tuple[int, int], str]
         self.parse_metadata()
@@ -238,19 +240,30 @@ class LSFExporter:
 
     def parse_metadata(self):
         with self.lsf_reader as lsf:
-            self.log_name = next(lsf.read_message(types=[pyimc.LoggingControl])).name
+            logging_control = next(lsf.read_message(types=[pyimc.LoggingControl]))
+            self.log_name = logging_control.name
+            self.logging_system_id = logging_control.src
 
+            # Collect all announced systems (map: imc id -> system name)
             for msg in lsf.read_message(types=[pyimc.Announce]):
                 self.node_map[msg.src] = msg.sys_name
 
+            # Collect all entities (imc id, entity id -> entity name)
             for msg in lsf.read_message(types=[pyimc.EntityInfo]):
                 self.entity_map[(msg.src, msg.src_ent)] = msg.label
 
+            # Do the same using EntityList
             for msg in lsf.read_message(types=[pyimc.EntityList]):
                 if type(msg) is pyimc.EntityList and msg.op == pyimc.EntityList.OperationEnum.REPORT:
                     for entity in msg.list.split(';'):
                         entity_name, entity_id = entity.split('=')
                         self.entity_map[(msg.src, int(entity_id))] = entity_name
+
+            # Try to update logging system name
+            try:
+                self.logging_system_name = self.node_map[self.logging_system_id]
+            except KeyError:
+                pass
 
     def extract_fields(self, msg, msg_fields, skip_lists=False):
         d = []
