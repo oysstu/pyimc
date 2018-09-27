@@ -1,5 +1,5 @@
 # pyimc
-Python bindings for IMC.
+Python bindings for [Inter-Module Communication Protocol (IMC)](https://lsts.fe.up.pt/toolchain/imc) used to communicate between modules in the [LSTS toolchain](https://lsts.fe.up.pt/).
 
 ### Installation
 
