@@ -1,5 +1,6 @@
-import socket, logging
-import asyncio
+import socket
+import logging
+import inspect
 from operator import itemgetter
 from contextlib import suppress
 import types
@@ -110,23 +111,30 @@ class IMCBase:
         :param msg: The IMC message to post
         :return:
         """
-        if pyimc.Message in type(msg).__bases__:
-            try:
-                for fn in self._subs[type(msg)]:
-                    fn(msg)
-                for fn in self._subs[pyimc.Message]:
-                    fn(msg)
-            except KeyError:
-                pass
-        elif type(msg) is pyimc.Message:
-            # Subscriptions to pyimc.Message receives all messages
+        # Check that message is subclass of pyimc.Message
+        # Note: messages that exists in DUNE, but has no pybind11 bindings are returned as pyimc.Message
+        class_hierarchy = inspect.getmro(type(msg))
+        if pyimc.Message in class_hierarchy:
+            # Post message of known type
+            if type(msg) is not pyimc.Message:
+                try:
+                    for fn in self._subs[type(msg)]:
+                        fn(msg)
+                except KeyError:
+                    pass
+            else:
+                # Emit warning on IMC type without bindings
+                logger.warning(
+                    'Unknown IMC message received: {} ({}) from {}'.format(msg.msg_name, msg.msg_id, msg.src))
+
+            # Post messages to functions subscribed to all messages (pyimc.Message)
             try:
                 for fn in self._subs[pyimc.Message]:
                     fn(msg)
             except KeyError:
                 pass
         else:
-            logger.warning('Unknown IMC message received: {} ({}) from {}'.format(msg.msg_name, msg.msg_id, msg.src))
+            logger.warning('Received message that is not subclass of pyimc.Message: {}'.format(type(msg)))
 
 
 class ActorBase(IMCBase):
