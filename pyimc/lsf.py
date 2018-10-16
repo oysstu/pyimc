@@ -267,18 +267,19 @@ class LSFExporter:
 
     def extract_fields(self, msg, msg_fields, skip_lists=False):
         d = []
-        for f in msg_fields:
-            f = getattr(msg, f)
+        for field_name in msg_fields:
+            value = getattr(msg, field_name)
 
-            if type(f).__qualname__.startswith('MessageList'):
-                sub_msgs = list(f)
+            if type(value).__qualname__.startswith('MessageList'):
+                sub_msgs = list(value)
                 if not sub_msgs or skip_lists:
                     return []
 
                 sub_fields = [k for k, v in type(sub_msgs[0]).__dict__.items() if type(v).__qualname__ == 'property']
-                d.append([self.extract_fields(x, sub_fields) for x in f])
+                d.append([self.extract_fields(x, sub_fields) for x in value])
             else:
-                d.append(f)
+                # Cast enumerations to int
+                d.append(int(value) if hasattr(value, '__members__') else value)
 
         return d
 
@@ -303,9 +304,22 @@ class LSFExporter:
             df = pd.DataFrame(data=data, columns=base_fields+msg_fields)
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
 
+            # Convert estate local frame to lat/lon
             if imc_type is pyimc.EstimatedState:
                 df[['lat', 'lon', 'height']] = extra
                 del df['x'], df['y'], df['z']
+
+            # Convert enumerations to categorical and bitfields to strings
+            tmp = imc_type()
+            for field_name in msg_fields:
+                val = getattr(tmp, field_name)
+                # Both enums and bitfields defines __members__
+                if hasattr(val, '__members__'):
+                    # Only bitfields defines xor
+                    if hasattr(val, '__xor__'):
+                        pass
+                    else:
+                        df[field_name] = pd.Categorical.from_codes(df[field_name], list(val.__members__.keys()))
 
             return df
 
