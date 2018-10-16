@@ -3,6 +3,7 @@ Functionality related to the DUNE lsf logs.
 """
 
 import io
+from io import BytesIO
 import os
 import ctypes
 import pyimc
@@ -50,27 +51,28 @@ class LSFReader:
     Must either be used through the one-off static method or using 'with LSFReader(..) as x:'
     """
     @staticmethod
-    def read(lsf_path: str, types: List[Type[pyimc.Message]] = None, use_index=True, save_index=True):
+    def read(lsf: Union[str, bytes], types: List[Type[pyimc.Message]] = None, use_index=True, save_index=True):
         """
         Read all messages of the specified type(s)
-        :param lsf_path: Path to the lsf file
+        :param lsf: The path to an LSF-file on the filesystem, or an in-memory lsf-file (bytes)
         :param types: List of types to return
         :param use_index: If true, generates an index of the message types (speeds up subsequent reads)
         :param save_index: If true, the generated index is saved to a pyimc_idx file
         :return: Message generator object
         """
-        with LSFReader(lsf_path, use_index=use_index, save_index=save_index) as lsf_reader:
+        with LSFReader(lsf, use_index=use_index, save_index=save_index) as lsf_reader:
             for message in lsf_reader.read_message(types=types):
                 yield message
 
-    def __init__(self, lsf_path: str, use_index=True, save_index=True):
+    def __init__(self, lsf: Union[str, bytes], use_index=True, save_index=True):
         """
         Reads an LSF file.
-        :param lsf_path: The path to the LSF file.
+        :param lsf: The path to an LSF-file on the filesystem, or an in-memory lsf-file (bytes)
         :param types: The message types to return. List of pyimc message classes.
-        :param make_index: If true, an index that speeds up subsequent reads is created.
+        :param use_index: If true, generates an index of the message types (speeds up subsequent reads)
+        :param save_index: If true, the generated index is saved to a pyimc_idx file
         """
-        self.fpath = lsf_path
+        self.lsf = lsf
         self.f = None  # type: io.BufferedIOBase
         self.header = IMCHeader()  # Preallocate header buffer
         self.parser = pyimc.Parser()
@@ -79,17 +81,28 @@ class LSFReader:
         self.save_index = save_index
 
     def __enter__(self):
-        self.f = open(self.fpath, mode='rb')
+        # Open file/stream
+        if type(self.lsf) is str:
+            self.f = open(self.lsf, mode='rb')
+        elif type(self.lsf) is bytes:
+            self.f = BytesIO(self.lsf)
 
-        self.read_index()
+        # Attempt to read an pre-existing index file
+        if type(self.lsf) is str:
+            fbase, ext = os.path.splitext(self.lsf)
+            if os.path.isfile(fbase + '.pyimc_idx') and os.path.getsize(fbase + '.pyimc_idx') > 0:
+                self.read_index(fbase + '.pyimc_idx')
+
+        # Generate/save index
         if not self.idx and self.use_index:
             self.generate_index()
-            if self.save_index:
-                self.write_index()
+            if self.save_index and type(self.lsf) is str:
+                self.write_index(os.path.splitext(self.lsf)[0] + '.pyimc_idx')
 
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        # Close file/stream
         self.f.close()
 
     def peek_header(self):
@@ -104,12 +117,13 @@ class LSFReader:
         """
         Run through the lsf-file and generate a message index (in-memory).
         Speeds up when the file is parsed multiple times, e.g. to output different messages
-        :return:
+        :return:a
         """
         self.f.seek(0)
 
         # Check for file end
-        while self.f.peek(1):
+        while self.f.read(1):
+            self.f.seek(-1, io.SEEK_CUR)
             self.peek_header()
 
             # Timestamp of first message is used to avoid index/lsf mismatch on load
@@ -119,7 +133,7 @@ class LSFReader:
             # Store position for this message
             try:
                 self.idx[self.header.mgid].append(self.f.tell())
-            except (KeyError, AttributeError) as e:
+            except (KeyError, AttributeError):
                 self.idx[self.header.mgid] = [self.f.tell()]
 
             # Go to next message
@@ -127,42 +141,45 @@ class LSFReader:
 
         self.f.seek(0)
 
-    def write_index(self):
+    def write_index(self, fpath):
         """
         Write message index to pyimc_idx file. Generates index if not already present
+        :param fpath: The file path to write (typically lsf_name.pyimc_idx)
         :return:
         """
         if not self.idx:
             self.generate_index()
 
         # Store index
-        fbase, ext = os.path.splitext(self.fpath)
-        with open(fbase + '.pyimc_idx', mode='wb') as f:
+        with open(fpath, mode='wb') as f:
             pickle.dump(self.idx, f)
 
-    def read_index(self):
-        fbase, ext = os.path.splitext(self.fpath)
-        if os.path.isfile(fbase + '.pyimc_idx'):
-            with open(fbase + '.pyimc_idx', 'rb') as f_idx:
-                self.idx = pickle.load(f_idx)
+    def read_index(self, fpath):
+        """
 
-            # Verify that timestamp matches first message
-            self.peek_header()
-            if self.header.timestamp != self.idx['timestamp']:
-                self.idx = {}
+        :param fpath: The path to write (typically lsf_name.pyimc_idx)
+        :return:
+        """
+        with open(fpath, 'rb') as f_idx:
+            self.idx = pickle.load(f_idx)
 
-            # Remove timestamp entry
-            del self.idx['timestamp']
+        # Verify that timestamp matches first message
+        self.peek_header()
+        if self.header.timestamp != self.idx['timestamp']:
+            self.idx = {}
 
-    def count_index(self, msgtype: Type[pyimc.Message]) -> int:
+        # Remove timestamp entry
+        del self.idx['timestamp']
+
+    def count_index(self, msg_type: Type[pyimc.Message]) -> int:
         """
         Get the number of messages for a given type, useful for preallocation.
         Note: generates an index, but only saves if make_index is true
-        :param msgtype: The message type to return the index count for.
+        :param msg_type: The message type to return the index count for.
         :return: The number of messages of a given type
         """
 
-        return len(self.idx[pyimc.Factory.id_from_abbrev(msgtype.__name__)])
+        return len(self.idx[pyimc.Factory.id_from_abbrev(msg_type.__name__)])
 
     def sorted_idx_iter(self, types: List[int]) -> Iterable[int]:
         """
@@ -203,10 +220,11 @@ class LSFReader:
 
             # Read file without index
             # Check for file end
-            while self.f.peek(1):
+            while self.f.read(1):
+                self.f.seek(-1, io.SEEK_CUR)
                 self.peek_header()
 
-                if not self.msg_types or self.header.mgid in self.msg_types:
+                if not msg_types or self.header.mgid in msg_types:
                     self.parser.reset()
                     b = self.f.read(self.header.size + ctypes.sizeof(IMCHeader) + ctypes.sizeof(IMCFooter))
                     msg = self.parser.parse(b)
@@ -223,15 +241,15 @@ class LSFExporter:
     TODO: Fix MessageLists
     """
 
-    def __init__(self, lsf_path: str, use_index=True, save_index=True):
+    def __init__(self, lsf: Union[str, bytes], use_index=True, save_index=True):
         """
         Initialize exporter to a given LSF-file. Generates metadata automatically
         :param lsf_path: The path to the LSF-file
         :param use_index: If true, generates an index of the message types, faster export of multiple message types
         :param save_index: If true, index is saved to file for subsequent runs
         """
-        self.fpath = lsf_path
-        self.lsf_reader = LSFReader(lsf_path, use_index=use_index, save_index=save_index)
+        self.lsf = lsf
+        self.lsf_reader = LSFReader(lsf, use_index=use_index, save_index=save_index)
 
         # Metadata
         self.log_name = None  # type: str
