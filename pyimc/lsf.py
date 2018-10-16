@@ -44,24 +44,26 @@ class IMCFooter(ctypes.LittleEndianStructure):
 class LSFReader:
     """
     Implements reading of LSF files.
-    The class creates an index by default, but this can be disabled if the file will only be read once.
+    The class creates an index by default, but this can be disabled if the file will only be read once. It is also
+    possible to disable the storing of this index to file, e.g. if the LSF-file is located in a read-only filesystem.
 
     Must either be used through the one-off static method or using 'with LSFReader(..) as x:'
     """
     @staticmethod
-    def read(lsf_path: str, types: List[Type[pyimc.Message]] = None, make_index=True):
+    def read(lsf_path: str, types: List[Type[pyimc.Message]] = None, use_index=True, save_index=True):
         """
         Read all messages of the specified type(s)
         :param lsf_path: Path to the lsf file
         :param types: List of types to return
-        :param make_index: If true, an index is created if it does not already exist
+        :param use_index: If true, generates an index of the message types (speeds up subsequent reads)
+        :param save_index: If true, the generated index is saved to a pyimc_idx file
         :return: Message generator object
         """
-        with LSFReader(lsf_path, make_index=make_index) as lsf_reader:
+        with LSFReader(lsf_path, use_index=use_index, save_index=save_index) as lsf_reader:
             for message in lsf_reader.read_message(types=types):
                 yield message
 
-    def __init__(self, lsf_path: str, make_index=True):
+    def __init__(self, lsf_path: str, use_index=True, save_index=True):
         """
         Reads an LSF file.
         :param lsf_path: The path to the LSF file.
@@ -73,15 +75,17 @@ class LSFReader:
         self.header = IMCHeader()  # Preallocate header buffer
         self.parser = pyimc.Parser()
         self.idx = {}  # type: Dict[Union[int, str], List[int]]
-        self.make_index = make_index
-
+        self.use_index = use_index
+        self.save_index = save_index
 
     def __enter__(self):
         self.f = open(self.fpath, mode='rb')
 
         self.read_index()
-        if not self.idx and self.make_index:
-            self.write_index()
+        if not self.idx and self.use_index:
+            self.generate_index()
+            if self.save_index:
+                self.write_index()
 
         return self
 
@@ -96,9 +100,10 @@ class LSFReader:
         # Return file position to before header
         self.f.seek(-ctypes.sizeof(IMCHeader), io.SEEK_CUR)
 
-    def write_index(self):
+    def generate_index(self):
         """
-        Run through the lsf-file and generate an index file
+        Run through the lsf-file and generate a message index (in-memory).
+        Speeds up when the file is parsed multiple times, e.g. to output different messages
         :return:
         """
         self.f.seek(0)
@@ -121,6 +126,14 @@ class LSFReader:
             self.f.seek(ctypes.sizeof(IMCHeader) + self.header.size + ctypes.sizeof(IMCFooter), io.SEEK_CUR)
 
         self.f.seek(0)
+
+    def write_index(self):
+        """
+        Write message index to pyimc_idx file. Generates index if not already present
+        :return:
+        """
+        if not self.idx:
+            self.generate_index()
 
         # Store index
         fbase, ext = os.path.splitext(self.fpath)
@@ -210,9 +223,15 @@ class LSFExporter:
     TODO: Fix MessageLists
     """
 
-    def __init__(self, lsf_path: str):
+    def __init__(self, lsf_path: str, use_index=True, save_index=True):
+        """
+        Initialize exporter to a given LSF-file. Generates metadata automatically
+        :param lsf_path: The path to the LSF-file
+        :param use_index: If true, generates an index of the message types, faster export of multiple message types
+        :param save_index: If true, index is saved to file for subsequent runs
+        """
         self.fpath = lsf_path
-        self.lsf_reader = LSFReader(lsf_path, make_index=True)
+        self.lsf_reader = LSFReader(lsf_path, use_index=use_index, save_index=save_index)
 
         # Metadata
         self.log_name = None  # type: str
@@ -222,7 +241,12 @@ class LSFExporter:
         self.entity_map = {}  # type: Dict[Tuple[int, int], str]
         self.parse_metadata()
 
-    def get_node(self, imc_id):
+    def get_node(self, imc_id: int) -> str:
+        """
+        Retrieve the name of the system assosciated with an imc address
+        :param imc_id: The imc-id of the system
+        :return:
+        """
         if imc_id == 0xFFFF:
             return '*'
         try:
@@ -230,7 +254,13 @@ class LSFExporter:
         except KeyError:
             return hex(imc_id)
 
-    def get_entity(self, imc_id, ent_id):
+    def get_entity(self, imc_id: int, ent_id: int) -> str:
+        """
+        Retrieve the name of an entity assosciated with an imc address
+        :param imc_id: The imc-id of the system
+        :param ent_id: The entity-id of the entity
+        :return:
+        """
         if ent_id == 0xFF:
             return '*'
         try:
@@ -239,6 +269,10 @@ class LSFExporter:
             return str(imc_id)
 
     def parse_metadata(self):
+        """
+        Generates metadata from the target LSF file (imc nodes, imc entities)
+        :return:
+        """
         with self.lsf_reader as lsf:
             logging_control = next(lsf.read_message(types=[pyimc.LoggingControl]))
             self.log_name = logging_control.name
@@ -266,6 +300,13 @@ class LSFExporter:
                 pass
 
     def extract_fields(self, msg, msg_fields, skip_lists=False):
+        """
+        Extracts the fields given in msg_fields from the message object
+        :param msg: The message object to extract the fields from
+        :param msg_fields: The message fields to extract
+        :param skip_lists: Skips MessageList types (works poorly with a tabular structure)
+        :return:
+        """
         d = []
         for field_name in msg_fields:
             value = getattr(msg, field_name)
@@ -273,7 +314,7 @@ class LSFExporter:
             if type(value).__qualname__.startswith('MessageList'):
                 sub_msgs = list(value)
                 if not sub_msgs or skip_lists:
-                    return []
+                    continue
 
                 sub_fields = [k for k, v in type(sub_msgs[0]).__dict__.items() if type(v).__qualname__ == 'property']
                 d.append([self.extract_fields(x, sub_fields) for x in value])
@@ -283,7 +324,13 @@ class LSFExporter:
 
         return d
 
-    def export_messages(self, imc_type: Type[pyimc.Message], skip_lists=False):
+    def export_messages(self, imc_type: Type[pyimc.Message], skip_lists=False) -> pd.DataFrame:
+        """
+        Export the messages of the target imc type from the LSF file as a pandas.DataFrame
+        :param imc_type: The pyimc type of the target message (e.g. pyimc.EstimatedState)
+        :param skip_lists: Skips MessageList types (works poorly with a tabular structure)
+        :return:
+        """
         with self.lsf_reader as lsf:
             base_fields = ['timestamp', 'src', 'src_ent', 'dst', 'dst_ent']
             msg_fields = [k for k, v in imc_type.__dict__.items() if type(v).__qualname__ == 'property']
