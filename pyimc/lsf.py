@@ -342,11 +342,12 @@ class LSFExporter:
 
         return d
 
-    def export_messages(self, imc_type: Type[pyimc.Message], skip_lists=False) -> pd.DataFrame:
+    def export_messages(self, imc_type: Type[pyimc.Message], skip_lists=False, condition=None) -> pd.DataFrame:
         """
         Export the messages of the target imc type from the LSF file as a pandas.DataFrame
         :param imc_type: The pyimc type of the target message (e.g. pyimc.EstimatedState)
         :param skip_lists: Skips MessageList types (works poorly with a tabular structure)
+        :param condition: Only export messages where the given lambda expression evaluates to True (lambda(msg))
         :return:
         """
         with self.lsf_reader as lsf:
@@ -356,6 +357,10 @@ class LSFExporter:
             data = []
             extra = []
             for msg in lsf.read_message(types=[imc_type]):
+                if condition is not None:
+                    if not condition(msg):
+                        continue
+
                 msg_data = [msg.timestamp, self.get_node(msg.src), self.get_entity(msg.src, msg.src_ent),
                             self.get_node(msg.dst), self.get_entity(msg.dst_ent, msg.dst_ent)]
 
