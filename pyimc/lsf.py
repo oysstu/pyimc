@@ -357,9 +357,8 @@ class LSFExporter:
             data = []
             extra = []
             for msg in lsf.read_message(types=[imc_type]):
-                if condition is not None:
-                    if not condition(msg):
-                        continue
+                if condition is not None and not condition(msg):
+                    continue
 
                 msg_data = [msg.timestamp, self.get_node(msg.src), self.get_entity(msg.src, msg.src_ent),
                             self.get_node(msg.dst), self.get_entity(msg.dst_ent, msg.dst_ent)]
