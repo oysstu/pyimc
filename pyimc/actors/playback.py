@@ -17,10 +17,11 @@ class PlaybackActor(ActorBase):
     Messages are dispatched according to the offset from the first message (timestamp) from that system
     """
 
-    def __init__(self, lsf_path, speed: float=1.0, offset_time: bool=True):
+    def __init__(self, lsf_path, speed: float=1.0, offset_time: bool=True, start_time: float=None):
         """
         :param speed: The speed factor to play back the data with (1.0: realtime, negative: no delay)
-        :param offset_time: If true, the timestamps of the messages will be modified before dispatched
+        :param offset_time: Optionally offset messages to current system time
+        :param start_time: Optional starting time for the playback (compared with imc timestamp)
         """
         super().__init__()
 
@@ -28,6 +29,7 @@ class PlaybackActor(ActorBase):
         self.lsf_path = lsf_path
         self.speed = speed
         self.offset_time = offset_time
+        self.start_time = start_time
 
         # State
         self.t0 = None  # Time of actor start
@@ -49,10 +51,22 @@ class PlaybackActor(ActorBase):
             except KeyError:
                 self.t0_sys[msg.src] = msg.timestamp
 
+            # Time since start of log
             t_msg = self.t0 + msg.timestamp - self.t0_sys[msg.src]
 
             if self.offset_time:
                 msg.timestamp = t_msg
+
+            # Optional: Skip messages until given time, except core messages
+            if self.start_time and msg.timestamp < self.start_time:
+                if type(msg) is pyimc.Announce:
+                    self.recv_announce(msg)
+                elif type(msg) is pyimc.EntityList:
+                    self.recv_entity_list(msg)
+                elif type(msg) is pyimc.EntityInfo:
+                    self.recv_entity_info(msg)
+
+                continue
 
             # Sleep until message should be posted
             # Also important to give CPU time to other tasks
