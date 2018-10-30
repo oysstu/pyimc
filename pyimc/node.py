@@ -69,6 +69,9 @@ class IMCNode:
     def update_entity_list(self, msg):
         self.entities = {k: int(v) for k, v in (x.split('=') for x in msg.list.split(';'))}
 
+    def update_entity_id(self, ent_id, ent_label):
+        self.entities[ent_label] = ent_id
+
     def send(self, msg):
         """
         Sends the IMC message to the node, filling in the destination
