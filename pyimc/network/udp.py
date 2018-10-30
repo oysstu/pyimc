@@ -112,24 +112,33 @@ def get_multicast_socket(sock=None):
     return sock
 
 
-def get_imc_socket(sock=None):
+def get_imc_socket(sock=None, port=None):
     if not sock:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     sock.settimeout(0.001)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    port = None
-    for i in range(6001, 6030):
+    if port:
+        # Use specific port
         try:
-            sock.bind(('0.0.0.0', i))
-            port = i
-            break
-        except OSError as e:
+            sock.bind(('0.0.0.0', port))
+        except OSError:
             # Socket already in use without SO_REUSEADDR enabled
-            continue
+            raise RuntimeError('The IMC port specified is already in use ({}).'.format(port))
+    else:
+        # Try ports in the typical IMC/DUNE range
+        port = None
+        for i in range(6001, 6030):
+            try:
+                sock.bind(('0.0.0.0', i))
+                port = i
+                break
+            except OSError:
+                # Socket already in use without SO_REUSEADDR enabled
+                continue
 
     if not port:
-        raise RuntimeError('No IMC ports free on local interface.')
+        raise RuntimeError('No IMC ports free on local interface (6001-6030).')
 
     return sock
