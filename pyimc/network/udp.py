@@ -32,11 +32,18 @@ class IMCSenderUDP:
 
 
 class IMCProtocolUDP(asyncio.DatagramProtocol):
-    def __init__(self, instance, is_multicast=False):
+    def __init__(self, instance, is_multicast=False, static_port=None):
+        """
+        Sets up an datagram listener for IMC messages
+        :param instance: The parent object (derived from IMCBase)
+        :param is_multicast: If true, the protocol listens for messages over multicast (e.g. Announce messages)
+        :param static_port: Optional static port to listen on. RuntimeError is raised if port is in use.
+        """
         self.transport = None
         self.parser = pyimc.Parser()
         self.instance = instance
         self.is_multicast = is_multicast
+        self.static_port = static_port
 
     def connection_made(self, transport):
         self.transport = transport
@@ -70,7 +77,7 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
         logger.debug('Lost connection {}'.format(exc))
 
 
-def get_multicast_socket(sock=None):
+def get_multicast_socket(sock=None, static_port=None):
     if not sock:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -96,15 +103,23 @@ def get_multicast_socket(sock=None):
         logger.error('Unable to obtain socket with multicast enabled.')
         raise e
 
-    port = None
-    for i in range(30100, 30105):
+    if static_port is not None:
         try:
-            sock.bind(('0.0.0.0', i))
-            port = i
-            break
-        except OSError as e:
+            sock.bind(('0.0.0.0', static_port))
+            port = static_port
+        except OSError:
             # Socket already in use without SO_REUSEADDR enabled
-            continue
+            raise RuntimeError('The IMC multicast port specified is already in use ({}).'.format(port))
+    else:
+        port = None
+        for i in range(30100, 30105):
+            try:
+                sock.bind(('0.0.0.0', i))
+                port = i
+                break
+            except OSError as e:
+                # Socket already in use without SO_REUSEADDR enabled
+                continue
 
     if not port:
         raise RuntimeError('No IMC multicast ports free on local interface.')
@@ -112,14 +127,14 @@ def get_multicast_socket(sock=None):
     return sock
 
 
-def get_imc_socket(sock=None, port=None):
+def get_imc_socket(sock=None, static_port=None):
     if not sock:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     sock.settimeout(0.001)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    if port:
+    if static_port is not None:
         # Use specific port
         try:
             sock.bind(('0.0.0.0', port))

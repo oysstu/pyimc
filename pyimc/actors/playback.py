@@ -4,14 +4,14 @@ import logging
 import sys
 
 import pyimc
-from pyimc.actors.base import ActorBase
+from pyimc.actors.dynamic import DynamicActor
 from pyimc.lsf import LSFReader
 from pyimc.decorators import RunOnce, Subscribe
 
 logger = logging.getLogger('pyimc.actors.playback')
 
 
-class PlaybackActor(ActorBase):
+class PlaybackActor(DynamicActor):
     """
     Playback actor class. Plays back an LSF file in addition to networked messages.
     Messages are dispatched according to the offset from the first message (timestamp) from that system

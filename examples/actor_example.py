@@ -12,11 +12,11 @@ import sys
 from typing import Tuple
 
 import pyimc
-from pyimc.actors import ActorBase
+from pyimc.actors.dynamic import DynamicActor
 from pyimc.decorators import Periodic, Subscribe
 
 
-class ExampleActor(ActorBase):
+class ExampleActor(DynamicActor):
     def __init__(self, target_name):
         """
         Initialize the actor

@@ -1,15 +1,11 @@
 import socket
 import logging
-import inspect
-from operator import itemgetter
 from contextlib import suppress
 import types
-from typing import Dict, List, Tuple
 
 import pyimc
 from pyimc.decorators import *
-from pyimc.network.udp import IMCSenderUDP, multicast_ip, IMCProtocolUDP
-from pyimc.network.utils import get_interfaces
+from pyimc.network.udp import IMCProtocolUDP
 from pyimc.node import IMCNode
 from pyimc.exception import AmbiguousKeyError
 
@@ -21,7 +17,16 @@ class IMCBase:
     Base class for IMC communications.
     Implements an event loop, subscriptions, IMC node bookkeeping
     """
-    def __init__(self):
+    def __init__(self, imc_id=0x3334, static_port=None):
+        """
+        Initialize the IMC comms. Does not start the event loop until run() is called
+        :param imc_id: The IMC address this node should operate under
+        :param static_port: Optional static port to listen for IMC messages (useful if DUNE uses static transports)
+        """
+        # Arguments
+        self.imc_id = imc_id
+        self.static_port = static_port
+
         # Asyncio loop, tasks, and callbacks
         self._loop = None  # type: asyncio.BaseEventLoop
         self._task_mc = None  # type: asyncio.Task
@@ -49,7 +54,9 @@ class IMCBase:
                                                                  family=socket.AF_INET)
 
         # Add datagram endpoint for UDP IMC messages
-        imc_listener = self._loop.create_datagram_endpoint(lambda: IMCProtocolUDP(self, is_multicast=False),
+        imc_listener = self._loop.create_datagram_endpoint(lambda: IMCProtocolUDP(self,
+                                                                                  is_multicast=False,
+                                                                                  static_port=self.static_port),
                                                            family=socket.AF_INET)
 
         if sys.version_info < (3, 4, 4):
@@ -191,12 +198,30 @@ class IMCBase:
                 raise TypeError('Node id tuple must be (int, str).')
         elif id_type is IMCNode:
             # Resolve by an preexisting IMCNode object
-            return self.resolve_node_id((node_id.announce.src, node_id.announce.sys_name))
+            return self.resolve_node_id((node_id.src, node_id.sys_name))
         elif isinstance(node_id, pyimc.Message):
             # Resolve by imc address in received message (equivalent to imc id)
             return self.resolve_node_id(node_id.src)
         else:
             raise TypeError('Expected node_id as int, str, tuple(int,str) or Message, received {}'.format(id_type))
+
+    def send(self, node_id, msg, set_timestamp=True):
+        """
+        Send an imc message to the specified imc node. The node can be specified through it's imc address, system name
+        or a tuple of both. If either of the first two does not uniquely specify a node an AmbiguousNode exception is
+        raised.
+        :param node_id: The destination node (imc adr (int), system name (str) or a tuple(imc_adr, sys_name))
+        :param msg: The imc message to send
+        """
+
+        # Fill out source params
+        msg.src = self.imc_id
+
+        if set_timestamp:
+            msg.set_timestamp_now()
+
+        node = self.resolve_node_id(node_id)
+        node.send(msg)
 
     @Periodic(90)
     def prune_nodes(self):
@@ -207,7 +232,7 @@ class IMCBase:
         rm_keys = []  # Avoid changes to dict during iteration
         for key, node in self.nodes.items():
             has_heartbeat = type(node.heartbeat) is float and t - node.heartbeat < 60
-            has_announce = type(node.announce) is pyimc.Announce and t - node.announce.timestamp < 60
+            has_announce = node.last_announce is not None and t - node.last_announce < 60
             if not (has_heartbeat or has_announce):
                 logger.info('Connection to node "{}" timed out'.format(node))
                 rm_keys.append(key)
@@ -279,113 +304,6 @@ class IMCBase:
             node.update_entity_id(ent_id=msg.src_ent, ent_label=msg.label)
         except (AmbiguousKeyError, KeyError):
             pass
-
-
-class ActorBase(IMCBase):
-    """
-    Base actor class. Implements rudimentary bookkeeping of other IMC nodes and exchange of necessary messages.
-    """
-    def __init__(self):
-        super().__init__()
-        self.t_start = time.time()
-
-        # Set initial announce details
-        self.announce = pyimc.Announce()
-        self.announce.src = 0x3334  # imcjava uses 0x3333
-        self.announce.sys_name = 'ccu-pyimc-{}'.format(socket.gethostname().lower())
-        self.announce.sys_type = pyimc.SystemType.CCU
-        self.announce.owner = 0xFFFF
-        self.announce.src_ent = 1
-
-        # Set initial entities (services generated on first announce)
-        self.entities = {'Daemon': 0, 'Service Announcer': 1}
-
-        # IMC nodes to send heartbeat signal to (maintaining comms)
-        self.heartbeat = []  # type: List[Union[str, int, Tuple[int, str]]]
-
-    def send(self, node_id, msg):
-        """
-        Send an imc message to the specified imc node. The node can be specified through it's imc address, system name
-        or a tuple of both. If either of the first two does not uniquely specify a node an AmbiguousNode exception is 
-        raised.
-        :param node_id: The destination node (imc adr (int), system name (str) or a tuple(imc_adr, sys_name))
-        :param msg: The imc message to send
-        :return: 
-        """
-
-        # Fill out source params
-        msg.src = self.announce.src
-        msg.set_timestamp_now()
-
-        node = self.resolve_node_id(node_id)
-        node.send(msg)
-
-    @Subscribe(pyimc.EntityList)
-    def reply_entity_list(self, msg):
-        """
-        Respond to entity list queries
-        """
-        OpEnum = pyimc.EntityList.OperationEnum
-        if msg.op == OpEnum.QUERY:
-            try:
-                node = self.resolve_node_id(msg)
-
-                # Format entities into string and send back to node that requested it
-                ent_lst_sorted = sorted(self.entities.items(), key=itemgetter(1))  # Sort by value (entity id)
-                ent_lst = pyimc.EntityList()
-                ent_lst.op = OpEnum.REPORT
-                ent_lst.list = ';'.join('{}={}'.format(k, v) for k, v in ent_lst_sorted)
-                self.send(node, ent_lst)
-            except (AmbiguousKeyError, KeyError):
-                logger.debug('Unable to resolve node when sending EntityList')
-
-    @Periodic(30)
-    def query_entity_list(self):
-        """
-        Request entity list from nodes without one
-        """
-        for k, node in self.nodes.items():
-            if not node.entities:
-                q_ent = pyimc.EntityList()
-                q_ent.op = pyimc.EntityList.OperationEnum.QUERY
-                self.send(node, q_ent)
-
-    @Periodic(10)
-    def send_announce(self):
-        """
-        Send an announce. Will use properties stored in this class (e.g self.lat, self.lon to set parameters)
-        :return: 
-        """
-        # Build imc+udp string
-        # TODO: Add TCP protocol for IMC
-        if self._port_imc:  # Port must be ready to build IMC service string
-            self.services = ['imc+udp://{}:{}/'.format(adr[1], self._port_imc) for adr in get_interfaces()]
-            if not self.services:
-                # No external interfaces available, announce localhost/loopback
-                self.services = ['imc+udp://{}:{}/'.format(adr[1], self._port_imc) for adr in get_interfaces(False)]
-
-            self.announce.services = ';'.join(self.services)
-            with IMCSenderUDP(multicast_ip) as s:
-                self.announce.set_timestamp_now()
-                for i in range(30100, 30105):
-                    s.send(self.announce, i)
-        elif (time.time() - self.t_start) > 10:
-            logger.debug('IMC socket not ready')  # Socket should be ready by now.
-
-    @Periodic(1)
-    def send_heartbeat(self):
-        """
-        Send a heartbeat signal to nodes specified in self.heartbeat
-        """
-        hb = pyimc.Heartbeat()
-        for node_id in self.heartbeat:
-            try:
-                node = self.resolve_node_id(node_id)
-                self.send(node, hb)
-            except AmbiguousKeyError as e:
-                logger.exception(str(e) + '({})'.format(e.choices))
-            except KeyError:
-                pass
 
 
 if __name__ == '__main__':

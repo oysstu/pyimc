@@ -6,11 +6,11 @@ import logging
 import sys
 
 import pyimc
-from pyimc.actors import ActorBase
+from pyimc.actors.dynamic import DynamicActor
 from pyimc.decorators import Periodic, Subscribe
 
 
-class PlanActor(ActorBase):
+class PlanActor(DynamicActor):
     def __init__(self, target_name):
         """
         Initialize the actor

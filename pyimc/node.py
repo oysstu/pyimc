@@ -9,6 +9,9 @@ logger = logging.getLogger('pyimc.node')
 
 
 class IMCService:
+    """
+    IMC service consisting of an ip/port and service specifier
+    """
     def __init__(self, service_string):
         p = urlparse(service_string)
         self.ip = p.hostname
@@ -27,39 +30,58 @@ class IMCService:
 
 
 class IMCNode:
+    """
+    An IMC node consisting of it's address, services and entities.
+    """
     def __init__(self, announce=None, service_filter=('imc+udp',)):
         """
 
-        :param announce:
-        :param services:
+        :param announce: Initialize the node with the contents of an Announce message
+        :param service_filter: Only use the services specified in order of priority (TODO IMPLEMENT)
         """
-        self.announce = None  # type: pyimc.Announce
+        # Node data
+        self.sys_name = None  # type: str
+        self.src = None  # type: int
+        self.last_announce = None  # type: float
+        self.services_string = None  # type: str
+
+        # Parsed services
         self.services = {}  # type: Dict[str, IMCService]
+        # Parsed entities
         self.entities = {}  # type: Dict[str, int]
+        # Time of last heartbeat
         self.heartbeat = None  # type: float
+
+        # Node arguments
+        self.service_filter = service_filter
 
         if announce:
             self.update_announce(announce)
 
     @property
     def name(self):
-        return self.announce.sys_name if self.announce else None
+        return self.sys_name
 
     @property
     def id(self):
-        return self.announce.src if self.announce else None
+        return self.src
 
     def update_announce(self, msg):
-        self.announce = msg
-        if msg:
-            self.update_services()
+        self.sys_name = msg.sys_name
+        self.src = msg.src
+        self.last_announce = msg.timestamp
+
+        # Update the services
+        if self.services_string != msg.services:
+            self.update_services(msg.services)
+            self.services_string = msg.services
 
     def update_heartbeat(self, msg):
         self.heartbeat = msg.timestamp
 
-    def update_services(self):
+    def update_services(self, service_string: str):
         self.services = {}
-        for svc in self.announce.services.split(';'):
+        for svc in service_string.split(';'):
             s = IMCService(svc)
             try:
                 self.services[s.scheme].append(s)
@@ -103,10 +125,10 @@ class IMCNode:
                 s.send(message=msg, port=port)
 
     def __str__(self):
-        return 'IMCNode(0x{:X}, {})'.format(self.announce.src, self.announce.sys_name)
+        return 'IMCNode(0x{:X}, {})'.format(self.src, self.sys_name)
 
     def __repr__(self):
-        return 'IMCNode(0x{:X}, {})'.format(self.announce.src, self.announce.sys_name)
+        return 'IMCNode(0x{:X}, {})'.format(self.src, self.sys_name)
 
 
 if __name__ == '__main__':
