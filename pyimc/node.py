@@ -33,11 +33,12 @@ class IMCNode:
     """
     An IMC node consisting of it's address, services and entities.
     """
-    def __init__(self, announce=None, service_filter=('imc+udp',)):
+    def __init__(self, announce=None, service_filter=('imc+udp',), is_fixed=False):
         """
 
         :param announce: Initialize the node with the contents of an Announce message
         :param service_filter: Only use the services specified in order of priority (TODO IMPLEMENT)
+        :param is_fixed: Nodes that are fixed has been added manually and is not pruned when comms are lost
         """
         # Node data
         self.sys_name = None  # type: str
@@ -54,6 +55,7 @@ class IMCNode:
 
         # Node arguments
         self.service_filter = service_filter
+        self.is_fixed = is_fixed
 
         if announce:
             self.update_announce(announce)

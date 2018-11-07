@@ -205,6 +205,21 @@ class IMCBase:
         else:
             raise TypeError('Expected node_id as int, str, tuple(int,str) or Message, received {}'.format(id_type))
 
+    def add_node(self, node: IMCNode):
+        """
+        Add an IMC node to the map.
+        :param node: The node to be added to the map. The src and sys_name properties must be set
+        """
+        self.nodes[(node.src, node.sys_name)] = node
+
+    def remove_node(self, key):
+        """
+        Remove an IMC node from the map.
+        :param key: One of the supported key formats in resolve_node_id
+        """
+        node = self.resolve_node_id(key)
+        del self.nodes[(node.src, node.sys_name)]
+
     def send(self, node_id, msg, set_timestamp=True):
         """
         Send an imc message to the specified imc node. The node can be specified through it's imc address, system name
@@ -233,7 +248,7 @@ class IMCBase:
         for key, node in self.nodes.items():
             has_heartbeat = type(node.heartbeat) is float and t - node.heartbeat < 60
             has_announce = node.last_announce is not None and t - node.last_announce < 60
-            if not (has_heartbeat or has_announce):
+            if (has_heartbeat or has_announce) and not node.is_fixed:
                 logger.info('Connection to node "{}" timed out'.format(node))
                 rm_keys.append(key)
 
@@ -271,7 +286,7 @@ class IMCBase:
                 logger.warning('Multiple nodes are announcing the same IMC address or name: {} and {}'.format(key, key_imcadr))
 
             # New node
-            self.nodes[key] = IMCNode(msg)
+            self.add_node(IMCNode(msg))
 
     @Subscribe(pyimc.Heartbeat)
     def recv_heartbeat(self, msg):
