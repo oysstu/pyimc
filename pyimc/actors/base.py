@@ -227,6 +227,7 @@ class IMCBase:
         raised.
         :param node_id: The destination node (imc adr (int), system name (str) or a tuple(imc_adr, sys_name))
         :param msg: The imc message to send
+        :param set_timestamp: Set the timestamp to current system time
         """
 
         # Fill out source params
@@ -286,7 +287,7 @@ class IMCBase:
                 logger.warning('Multiple nodes are announcing the same IMC address or name: {} and {}'.format(key, key_imcadr))
 
             # New node
-            self.add_node(IMCNode(msg))
+            self.add_node(IMCNode.from_announce(msg))
 
     @Subscribe(pyimc.Heartbeat)
     def recv_heartbeat(self, msg):

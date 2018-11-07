@@ -33,16 +33,25 @@ class IMCNode:
     """
     An IMC node consisting of it's address, services and entities.
     """
-    def __init__(self, announce=None, service_filter=('imc+udp',), is_fixed=False):
-        """
+    @staticmethod
+    def from_announce(msg, service_filter=None, is_fixed=False):
+        node = IMCNode(src=msg.src, sys_name=msg.sys_name, service_filter=service_filter, is_fixed=is_fixed)
+        node.update_announce(msg)
 
+    def __init__(self, src, sys_name, service_filter=None, is_fixed=False):
+        """
+        :param src: The IMC source address
+        :param sys_name: The system name of the node
         :param announce: Initialize the node with the contents of an Announce message
         :param service_filter: Only use the services specified in order of priority (TODO IMPLEMENT)
         :param is_fixed: Nodes that are fixed has been added manually and is not pruned when comms are lost
         """
+        if service_filter is None:
+            service_filter = ('imc+udp',)
+
         # Node data
-        self.sys_name = None  # type: str
-        self.src = None  # type: int
+        self.src = src  # type: int
+        self.sys_name = sys_name  # type: str
         self.last_announce = None  # type: float
         self.services_string = None  # type: str
 
@@ -57,9 +66,6 @@ class IMCNode:
         self.service_filter = service_filter
         self.is_fixed = is_fixed
 
-        if announce:
-            self.update_announce(announce)
-
     @property
     def name(self):
         return self.sys_name
@@ -69,8 +75,9 @@ class IMCNode:
         return self.src
 
     def update_announce(self, msg):
-        self.sys_name = msg.sys_name
-        self.src = msg.src
+        """
+        Update the node data based on a new announce message.
+        """
         self.last_announce = msg.timestamp
 
         # Update the services
@@ -79,15 +86,22 @@ class IMCNode:
             self.services_string = msg.services
 
     def update_heartbeat(self, msg):
+        """
+        Update the connection status from an heartbeat message
+        """
         self.heartbeat = msg.timestamp
 
     def update_services(self, service_string: str):
+        """
+        Parse the service string from an announce message to IMCService objects
+        :param service_string: The service string from an announce message (protocols/ips/ports)
+       """
         self.services = {}
         for svc in service_string.split(';'):
             s = IMCService(svc)
             try:
                 self.services[s.scheme].append(s)
-            except KeyError as e:
+            except KeyError:
                 self.services[s.scheme] = [s]
 
     def update_entity_list(self, msg):
