@@ -54,7 +54,7 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
             sock = get_multicast_socket(sock)
             self.instance._port_mc = sock.getsockname()[1]
         else:
-            sock = get_imc_socket(sock)
+            sock = get_imc_socket(sock, self.static_port)
             self.instance._port_imc = sock.getsockname()[1]
 
             # Send an announce immediately after socket is ready (possible speedup in transports)
@@ -137,7 +137,7 @@ def get_imc_socket(sock=None, static_port=None):
     if static_port is not None:
         # Use specific port
         try:
-            sock.bind(('0.0.0.0', port))
+            sock.bind(('0.0.0.0', static_port))
         except OSError:
             # Socket already in use without SO_REUSEADDR enabled
             raise RuntimeError('The IMC port specified is already in use ({}).'.format(port))
@@ -153,7 +153,7 @@ def get_imc_socket(sock=None, static_port=None):
                 # Socket already in use without SO_REUSEADDR enabled
                 continue
 
-    if not port:
-        raise RuntimeError('No IMC ports free on local interface (6001-6030).')
+        if not port:
+            raise RuntimeError('No IMC ports free on local interface (6001-6030).')
 
     return sock

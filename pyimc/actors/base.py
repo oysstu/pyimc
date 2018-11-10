@@ -5,8 +5,8 @@ import types
 
 import pyimc
 from pyimc.decorators import *
-from pyimc.network.udp import IMCProtocolUDP
-from pyimc.node import IMCNode
+from pyimc.network.udp import IMCProtocolUDP, IMCSenderUDP
+from pyimc.node import IMCNode, IMCService
 from pyimc.exception import AmbiguousKeyError
 
 logger = logging.getLogger('pyimc.actors.base')
@@ -39,6 +39,10 @@ class IMCBase:
 
         # Using a map from (imc address, sys_name) to a node instance
         self.nodes = {}  # type: Dict[Tuple[int, str], IMCNode]
+
+        # Static transports
+        # Adding pyimc.Message transports all messges
+        self.static_transports = {}  # type: Dict[Type[pyimc.Message], List[IMCService]]
 
         # Overridden in subclasses
         self.announce = None
@@ -220,6 +224,25 @@ class IMCBase:
         node = self.resolve_node_id(key)
         del self.nodes[(node.src, node.sys_name)]
 
+    def send_static(self, msg, set_timestamp=True):
+        """
+        Send a message to the static destinations declared in static_transports
+        :param msg: The message to be sendt (note: dst is not filled automatically)
+        :param set_timestamp: If true, sets the timestamp to current time
+        """
+        # Fill out source params
+        msg.src = self.imc_id
+
+        if set_timestamp:
+            msg.set_timestamp_now()
+
+        for svc in self.static_transports.get(type(msg), []):
+            with IMCSenderUDP(svc.ip) as s:
+                s.send(message=msg, port=svc.port)
+        for svc in self.static_transports.get(pyimc.Message, []):
+            with IMCSenderUDP(svc.ip) as s:
+                s.send(message=msg, port=svc.port)
+
     def send(self, node_id, msg, set_timestamp=True):
         """
         Send an imc message to the specified imc node. The node can be specified through it's imc address, system name
@@ -238,6 +261,9 @@ class IMCBase:
 
         node = self.resolve_node_id(node_id)
         node.send(msg)
+
+        # Send to static destinations
+        self.send_static(msg)
 
     @Periodic(90)
     def prune_nodes(self):

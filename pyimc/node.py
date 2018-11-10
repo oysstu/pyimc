@@ -12,19 +12,25 @@ class IMCService:
     """
     IMC service consisting of an ip/port and service specifier
     """
-    def __init__(self, service_string):
-        p = urlparse(service_string)
-        self.ip = p.hostname
-        self.port = p.port
-        self.scheme = p.scheme
+    @staticmethod
+    def from_url(service_url):
+        p = urlparse(service_url)
 
         if p.path is not '/':
-            self.param = tuple(filter(None, p.path.split('/')))
+            param = tuple(filter(None, p.path.split('/')))
         else:
-            self.param = None
+            param = None
+
+        return IMCService(ip=p.hostname, port=p.port, scheme=p.scheme, param=param)
+
+    def __init__(self, ip, port, scheme, param=None):
+        self.ip = ip
+        self.port = port
+        self.scheme = scheme
+        self.param = param
 
     def __str__(self):
-        param = '{}/{}'.format(*self.param) if self.param else ''
+        param = '/'.join(self.param) if self.param else ''
         port = ':{}'.format(self.port) if self.port else ''
         return '{}://{}{}/{}'.format(self.scheme, self.ip, port, param)
 
@@ -37,6 +43,7 @@ class IMCNode:
     def from_announce(msg, service_filter=None, is_fixed=False):
         node = IMCNode(src=msg.src, sys_name=msg.sys_name, service_filter=service_filter, is_fixed=is_fixed)
         node.update_announce(msg)
+        return node
 
     def __init__(self, src, sys_name, service_filter=None, is_fixed=False):
         """
@@ -98,7 +105,7 @@ class IMCNode:
        """
         self.services = {}
         for svc in service_string.split(';'):
-            s = IMCService(svc)
+            s = IMCService.from_url(svc)
             try:
                 self.services[s.scheme].append(s)
             except KeyError:
@@ -117,9 +124,11 @@ class IMCNode:
         :return: 
         """
 
-        imcudp_services = self.services['imc+udp']
-        if not imcudp_services:
-            logger.error('{} does not expose an imc+udp service'.format(self))
+        try:
+            imcudp_services = self.services['imc+udp']
+        except KeyError:
+            if not self.is_fixed:
+                logger.error('{} does not expose an imc+udp service'.format(self))
             return
 
         # Determine which service to send to based on ip/netmask
