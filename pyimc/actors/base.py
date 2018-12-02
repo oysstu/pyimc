@@ -17,15 +17,17 @@ class IMCBase:
     Base class for IMC communications.
     Implements an event loop, subscriptions, IMC node bookkeeping
     """
-    def __init__(self, imc_id=0x3334, static_port=None):
+    def __init__(self, imc_id=0x3334, static_port=None, verbose_nodes=False):
         """
         Initialize the IMC comms. Does not start the event loop until run() is called
         :param imc_id: The IMC address this node should operate under
         :param static_port: Optional static port to listen for IMC messages (useful if DUNE uses static transports)
+        :param verbose_nodes: If true, the connected nodes are printed out every 10 seconds
         """
         # Arguments
         self.imc_id = imc_id
         self.static_port = static_port
+        self.verbose_nodes = verbose_nodes
 
         # Asyncio loop, tasks, and callbacks
         self._loop = None  # type: asyncio.BaseEventLoop
@@ -41,7 +43,7 @@ class IMCBase:
         self.nodes = {}  # type: Dict[Tuple[int, str], IMCNode]
 
         # Static transports
-        # Adding pyimc.Message transports all messges
+        # Adding pyimc.Message transports all messages
         self.static_transports = {}  # type: Dict[Type[pyimc.Message], List[IMCService]]
 
         # Overridden in subclasses
@@ -265,31 +267,55 @@ class IMCBase:
         # Send to static destinations
         self.send_static(msg)
 
-    @Periodic(90)
+    def on_connect(self, node_id):
+        """
+        Called when a new node is added to the node map
+        :param node_id: The id of the node Tuple[imc_address, imc_name]
+        """
+        raise NotImplementedError('Abstract implementation')
+
+    def on_disconnect(self, node_id):
+        """
+        Called when a new node is removed to the node map (timeout)
+        :param node_id: The id of the node Tuple[imc_address, imc_name]
+        """
+        raise NotImplementedError('Abstract implementation')
+
+    def on_first_heartbeat(self, node_id):
+        """
+        Called when a new node sends its first heartbeat message (transports started)
+        :param node_id: The id of the node Tuple[imc_address, imc_name]
+        """
+        raise NotImplementedError('Abstract implementation')
+
+    @Periodic(65)
     def prune_nodes(self):
         """
-        Clear nodes that have not announced themselves or sent heartbeat in the past 90 seconds
+        Clear nodes that have not announced themselves or sent heartbeat in the past 60 seconds
         """
         t = time.time()
         rm_keys = []  # Avoid changes to dict during iteration
         for key, node in self.nodes.items():
-            has_heartbeat = type(node.heartbeat) is float and t - node.heartbeat < 60
-            has_announce = node.last_announce is not None and t - node.last_announce < 60
-            if (has_heartbeat or has_announce) and not node.is_fixed:
+            has_heartbeat = type(node.last_heartbeat) is float and (t - node.last_heartbeat) < 60
+            has_announce = node.last_announce is not None and (t - node.last_announce) < 60
+            if not (has_heartbeat or has_announce) and not node.is_fixed:
                 logger.info('Connection to node "{}" timed out'.format(node))
                 rm_keys.append(key)
 
         for key in rm_keys:
             try:
-                logger.debug('Connection to node timed out ({})'.format(self.nodes[key]))
-                del self.nodes[key]
+                self.remove_node(key)
+                try:
+                    self.on_disconnect(key)
+                except NotImplementedError:
+                    pass
             except (KeyError, AttributeError) as e:
                 logger.exception('Encountered exception when removing node ({})'.format(e.msg))
 
     @Periodic(10)
-    def print_debug(self):
-        # Prints connected nodes every 10 seconds (debugging)
-        logger.debug('Connected nodes: {}'.format(list(self.nodes.keys())))
+    def print_connected_nodes(self):
+        if self.verbose_nodes:
+            logger.debug('Connected nodes: {}'.format(list(self.nodes.keys())))
 
     @Subscribe(pyimc.Announce)
     def recv_announce(self, msg):
@@ -315,11 +341,23 @@ class IMCBase:
             # New node
             self.add_node(IMCNode.from_announce(msg))
 
+            try:
+                self.on_connect(key)
+            except NotImplementedError:
+                pass
+
     @Subscribe(pyimc.Heartbeat)
     def recv_heartbeat(self, msg):
         try:
             node = self.resolve_node_id(msg)
-            node.update_heartbeat(msg)
+            first_heartbeat = node.last_heartbeat is None
+            node.update_heartbeat()
+
+            if first_heartbeat:
+                try:
+                    self.on_first_heartbeat((node.src, node.sys_name))
+                except NotImplementedError:
+                    pass
         except (AmbiguousKeyError, KeyError):
             logger.debug('Received heartbeat from unannounced node ({})'.format(msg.src))
 
