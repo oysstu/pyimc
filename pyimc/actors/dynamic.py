@@ -15,8 +15,8 @@ class DynamicActor(IMCBase):
     """
     Actor which announces itself and maintains communication (heartbeat) with a set of specified nodes.
     """
-    def __init__(self, imc_id=0x3334, static_port=None):
-        super().__init__(imc_id=imc_id, static_port=static_port)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.t_start = time.time()
 
         # Set initial announce details
