@@ -1,6 +1,7 @@
 import logging
 import ipaddress as ip
 from urllib.parse import urlparse
+import time
 
 from pyimc.network.udp import IMCSenderUDP
 from pyimc.network.utils import get_interfaces
@@ -67,7 +68,7 @@ class IMCNode:
         # Parsed entities
         self.entities = {}  # type: Dict[str, int]
         # Time of last heartbeat
-        self.heartbeat = None  # type: float
+        self.last_heartbeat = None  # type: float
 
         # Node arguments
         self.service_filter = service_filter
@@ -85,18 +86,21 @@ class IMCNode:
         """
         Update the node data based on a new announce message.
         """
-        self.last_announce = msg.timestamp
+
+        # Use local time in case remote system has a different time-zone
+        self.last_announce = time.time()
 
         # Update the services
         if self.services_string != msg.services:
             self.update_services(msg.services)
             self.services_string = msg.services
 
-    def update_heartbeat(self, msg):
+    def update_heartbeat(self):
         """
         Update the connection status from an heartbeat message
         """
-        self.heartbeat = msg.timestamp
+        # Use local time in case remote system has a different time-zone
+        self.last_heartbeat = time.time()
 
     def update_services(self, service_string: str):
         """
