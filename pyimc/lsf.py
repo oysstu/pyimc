@@ -259,7 +259,7 @@ class LSFExporter:
         self.entity_map = {}  # type: Dict[Tuple[int, int], str]
         self.parse_metadata()
 
-    def get_node(self, imc_id: int) -> str:
+    def get_node_name(self, imc_id: int) -> str:
         """
         Retrieve the name of the system assosciated with an imc address
         :param imc_id: The imc-id of the system
@@ -271,6 +271,19 @@ class LSFExporter:
             return self.node_map[imc_id]
         except KeyError:
             return hex(imc_id)
+
+    def get_node_id(self, sys_name: str) -> Union[int, type(None)]:
+        """
+        Retrieve the IMC id associated with an IMC system name.
+        Note: the name is assumed to be unique
+        :param sys_name: The announced name of the system
+        :return:
+        """
+        for k, v in self.node_map.items():
+            if v == sys_name:
+                return k
+
+        return None
 
     def get_entity(self, imc_id: int, ent_id: int) -> str:
         """
@@ -292,9 +305,12 @@ class LSFExporter:
         :return:
         """
         with self.lsf_reader as lsf:
-            logging_control = next(lsf.read_message(types=[pyimc.LoggingControl]))
-            self.log_name = logging_control.name
-            self.logging_system_id = logging_control.src
+            try:
+                logging_control = next(lsf.read_message(types=[pyimc.LoggingControl]))
+                self.log_name = logging_control.name
+                self.logging_system_id = logging_control.src
+            except StopIteration:
+                pass
 
             # Collect all announced systems (map: imc id -> system name)
             for msg in lsf.read_message(types=[pyimc.Announce]):
@@ -360,8 +376,8 @@ class LSFExporter:
                 if condition is not None and not condition(msg):
                     continue
 
-                msg_data = [msg.timestamp, self.get_node(msg.src), self.get_entity(msg.src, msg.src_ent),
-                            self.get_node(msg.dst), self.get_entity(msg.dst_ent, msg.dst_ent)]
+                msg_data = [msg.timestamp, self.get_node_name(msg.src), self.get_entity(msg.src, msg.src_ent),
+                            self.get_node_name(msg.dst), self.get_entity(msg.dst_ent, msg.dst_ent)]
 
                 msg_data.extend(self.extract_fields(msg, msg_fields, skip_lists))
 
