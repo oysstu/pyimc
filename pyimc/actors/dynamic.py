@@ -21,7 +21,7 @@ class DynamicActor(IMCBase):
 
         # Set initial announce details
         self.announce = pyimc.Announce()
-        self.announce.src = 0x3334  # imcjava uses 0x3333
+        self.announce.src = self.imc_id  # imcjava uses 0x3333
         self.announce.sys_name = 'ccu-pyimc-{}'.format(socket.gethostname().lower())
         self.announce.sys_type = pyimc.SystemType.CCU
         self.announce.owner = 0xFFFF
