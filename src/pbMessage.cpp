@@ -32,39 +32,18 @@ public:
     uint16_t getId(void) const override { 
         PYBIND11_OVERLOAD_PURE(uint16_t, Message, getId); 
         }
-    uint16_t getSubId(void) const override { 
-        PYBIND11_OVERLOAD(uint16_t, Message, getSubId); 
+    uint8_t* serializeFields(uint8_t* bfr) const override {
+        PYBIND11_OVERLOAD_PURE(uint8_t*, Message, serializeFields, bfr);
         }
-    void setSubId(uint16_t subId) override { 
-        PYBIND11_OVERLOAD(void, Message, setSubId, subId); 
+    uint16_t deserializeFields(const uint8_t* bfr, uint16_t len) override {
+        PYBIND11_OVERLOAD_PURE(uint16_t, Message, deserializeFields, bfr, len);
         }
-    fp64_t getValueFP(void) const override { 
-        PYBIND11_OVERLOAD(fp64_t, Message, getValueFP); 
-        }
-    void setValueFP(fp64_t val) override { 
-        PYBIND11_OVERLOAD(void, Message, setValueFP, val); 
-        }
-    unsigned getFixedSerializationSize(void) const override { 
-        PYBIND11_OVERLOAD(unsigned, Message, getPayloadSerializationSize); 
-        }
-    unsigned getVariableSerializationSize(void) const override { 
-        PYBIND11_OVERLOAD(unsigned, Message, getVariableSerializationSize); 
-        }
-    uint8_t* serializeFields(uint8_t* bfr) const override { 
-        PYBIND11_OVERLOAD_PURE(uint8_t*, Message, serializeFields, bfr); 
-        }
-    uint16_t deserializeFields(const uint8_t* bfr, uint16_t len) override { 
-        PYBIND11_OVERLOAD_PURE(uint16_t, Message, deserializeFields, bfr, len); 
-        }
-    uint16_t reverseDeserializeFields(const uint8_t* bfr, uint16_t len) override { 
-        PYBIND11_OVERLOAD_PURE(uint16_t, Message, reverseDeserializeFields, bfr, len); 
-        }
-    void fieldsToJSON(std::ostream& os, unsigned indent_level) const override {
-        PYBIND11_OVERLOAD(void, Message, fieldsToJSON,os, indent_level);
+    uint16_t reverseDeserializeFields(const uint8_t* bfr, uint16_t len) override {
+        PYBIND11_OVERLOAD_PURE(uint16_t, Message, reverseDeserializeFields, bfr, len);
         }
 };
 
-py::bytes fserialize(const Message* msg){ 
+py::bytes fserialize(const Message* msg){
     unsigned sz = msg->getSerializationSize();
     uint8_t* buf = (uint8_t*)std::malloc(sz);
     uint16_t n_written = Packet::serialize(msg, buf, sz);
