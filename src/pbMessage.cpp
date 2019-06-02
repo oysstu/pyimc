@@ -43,22 +43,6 @@ public:
         }
 };
 
-py::bytes fserialize(const Message* msg){
-    unsigned sz = msg->getSerializationSize();
-    uint8_t* buf = (uint8_t*)std::malloc(sz);
-    uint16_t n_written = Packet::serialize(msg, buf, sz);
-
-    return py::bytes(reinterpret_cast<const char*>(buf), static_cast<size_t>(n_written));
-};
-
-py::bytes fserializeFields(const Message* msg){
-    unsigned sz = msg->getPayloadSerializationSize();
-    uint8_t* buf = (uint8_t*)std::malloc(sz);
-    msg->serializeFields(buf);
-
-    return py::bytes(reinterpret_cast<const char*>(buf), static_cast<size_t>(sz));
-};
-
 void pbMessage(py::module &m) {
     py::class_<Message, PyMessage>(m, "Message")
             .def(py::init<>())
@@ -77,7 +61,5 @@ void pbMessage(py::module &m) {
             .def_property("src", &Message::getSource, &Message::setSource)
             .def_property("src_ent", &Message::getSourceEntity, &Message::setSourceEntity)
             .def_property("dst", &Message::getDestination, &Message::setDestination)
-            .def_property("dst_ent", &Message::getDestinationEntity, &Message::setDestinationEntity)
-            .def("serialize", &fserialize)
-            .def("serialize_fields", &fserializeFields);
+            .def_property("dst_ent", &Message::getDestinationEntity, &Message::setDestinationEntity);
 }

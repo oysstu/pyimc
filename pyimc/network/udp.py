@@ -4,6 +4,7 @@ from pyimc.common import multicast_ip
 
 logger = logging.getLogger('pyimc.udp')
 
+
 class IMCSenderUDP:
     def __init__(self, ip_dst, local_port=None):
         self.dst = ip_dst
@@ -25,7 +26,7 @@ class IMCSenderUDP:
 
     def send(self, message, port):
         if message.__module__ == '_pyimc':
-            b = message.serialize()
+            b = pyimc.Packet.serialize(message)
             self.sock.sendto(b, (self.dst, port))
         else:
             raise TypeError('Unknown message passed ({})'.format(type(message)))
@@ -40,7 +41,6 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
         :param static_port: Optional static port to listen on. RuntimeError is raised if port is in use.
         """
         self.transport = None
-        self.parser = pyimc.Parser()
         self.instance = instance
         self.is_multicast = is_multicast
         self.static_port = static_port
@@ -64,10 +64,13 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
                 pass
 
     def datagram_received(self, data, addr):
-        self.parser.reset()
-        p = self.parser.parse(data)
-        if p is not None:
-            self.instance.post_message(p)
+        try:
+            p = pyimc.Packet.deserialize(data)
+
+            if p is not None:
+                self.instance.post_message(p)
+        except RuntimeError as e:
+            logger.error('Exception raised when deserializing message: {}'.format(e))
 
     def error_received(self, exc):
         logger.error('Error received: {}'.format(exc))
@@ -104,9 +107,9 @@ def get_multicast_socket(sock=None, static_port=None):
         raise e
 
     if static_port is not None:
+        port = static_port
         try:
             sock.bind(('0.0.0.0', static_port))
-            port = static_port
         except OSError:
             # Socket already in use without SO_REUSEADDR enabled
             raise RuntimeError('The IMC multicast port specified is already in use ({}).'.format(port))
@@ -117,7 +120,7 @@ def get_multicast_socket(sock=None, static_port=None):
                 sock.bind(('0.0.0.0', i))
                 port = i
                 break
-            except OSError as e:
+            except OSError:
                 # Socket already in use without SO_REUSEADDR enabled
                 continue
 

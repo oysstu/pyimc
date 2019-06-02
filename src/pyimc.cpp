@@ -17,7 +17,7 @@ PYBIND11_MODULE(_pyimc, m) {
 
     // Bind classes
     pbMessage(m);
-    pbParser(m);
+    pbPacket(m);
     pbFactory(m);
     pbAlgorithms(m);
     pbCoordinates(m);

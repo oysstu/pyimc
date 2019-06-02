@@ -75,7 +75,6 @@ class LSFReader:
         self.lsf = lsf
         self.f = None  # type: io.BufferedIOBase
         self.header = IMCHeader()  # Preallocate header buffer
-        self.parser = pyimc.Parser()
         self.idx = {}  # type: Dict[Union[int, str], List[int]]
         self.use_index = use_index
         self.save_index = save_index
@@ -210,9 +209,8 @@ class LSFReader:
             for pos in self.sorted_idx_iter(msg_types):
                 self.f.seek(pos)
                 self.peek_header()
-                self.parser.reset()
                 b = self.f.read(self.header.size + ctypes.sizeof(IMCHeader) + ctypes.sizeof(IMCFooter))
-                msg = self.parser.parse(b)
+                msg = pyimc.Packet.deserialize(b)
                 yield msg
         else:
             # Reset file pointer to start of file
@@ -225,9 +223,8 @@ class LSFReader:
                 self.peek_header()
 
                 if not msg_types or self.header.mgid in msg_types:
-                    self.parser.reset()
                     b = self.f.read(self.header.size + ctypes.sizeof(IMCHeader) + ctypes.sizeof(IMCFooter))
-                    msg = self.parser.parse(b)
+                    msg = pyimc.Packet.deserialize(b)
                     yield msg
                 else:
                     self.f.seek(ctypes.sizeof(IMCHeader) + self.header.size + ctypes.sizeof(IMCFooter), io.SEEK_CUR)
