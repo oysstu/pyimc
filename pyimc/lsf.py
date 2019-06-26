@@ -9,7 +9,8 @@ import ctypes
 import pyimc
 import pickle
 import heapq
-import math
+import gzip
+import warnings
 from typing import List, Dict, Union, Iterable, Type, Tuple
 
 try:
@@ -120,14 +121,14 @@ class LSFReader:
         """
         self.f.seek(0)
 
-        # Check for file end
-        while self.f.read(1):
-            self.f.seek(-1, io.SEEK_CUR)
-            self.peek_header()
+        # Timestamp of first message is used to avoid index/lsf mismatch on load
+        self.peek_header()
+        self.idx['timestamp'] = self.header.timestamp
 
-            # Timestamp of first message is used to avoid index/lsf mismatch on load
-            if self.f.tell() == 0:
-                self.idx['timestamp'] = self.header.timestamp
+        # Check for file end
+        while self.f.read(ctypes.sizeof(IMCHeader)):
+            self.f.seek(-ctypes.sizeof(IMCHeader), io.SEEK_CUR)
+            self.peek_header()
 
             # Store position for this message
             try:
@@ -203,12 +204,14 @@ class LSFReader:
         """
 
         msg_types = None if types is None else [pyimc.Factory.id_from_abbrev(x.__name__) for x in types]
-
-        if self.idx:
+        if self.idx and msg_types is not None:
             # Read using index
             for pos in self.sorted_idx_iter(msg_types):
                 self.f.seek(pos)
                 self.peek_header()
+                if self.header.sync != pyimc.constants.SYNC:
+                    warnings.warn('Invalid synchronization number. Stopping parsing')
+                    break
                 b = self.f.read(self.header.size + ctypes.sizeof(IMCHeader) + ctypes.sizeof(IMCFooter))
                 msg = pyimc.Packet.deserialize(b)
                 yield msg
@@ -218,11 +221,15 @@ class LSFReader:
 
             # Read file without index
             # Check for file end
-            while self.f.read(1):
-                self.f.seek(-1, io.SEEK_CUR)
+            while self.f.read(ctypes.sizeof(IMCHeader)):
+                self.f.seek(-ctypes.sizeof(IMCHeader), io.SEEK_CUR)
                 self.peek_header()
 
-                if not msg_types or self.header.mgid in msg_types:
+                if self.header.sync != pyimc.constants.SYNC:
+                    warnings.warn('Invalid synchronization number. Stopping parsing')
+                    break
+
+                if msg_types is None or self.header.mgid in msg_types:
                     b = self.f.read(self.header.size + ctypes.sizeof(IMCHeader) + ctypes.sizeof(IMCFooter))
                     msg = pyimc.Packet.deserialize(b)
                     yield msg
