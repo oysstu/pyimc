@@ -152,11 +152,11 @@ class IMCMessage:
         self.id = el.attrib['id']
         self.name = el.attrib['name']
         self.abbrev = el.attrib['abbrev']
-        self.source = el.attrib['source'] if 'source' in el.attrib.keys() else None
+        self.source = el.attrib.get('source', None)
         self.description = '\n'.join([x.text for x in el.findall('description') if x])
         self.fields = [IMCField(x) for x in el.findall('field')]  # type: List[IMCField]
-        self.flags = el.attrib['flags'] if 'flags' in el.attrib.keys() else None
-        self.used_by = el.attrib['used-by'] if 'used-by' in el.attrib.keys() else None
+        self.flags = el.attrib.get('flags', None)
+        self.used_by = el.attrib.get('used-by', None)
         self.parent = 'Message'  # Default parent class
 
     def is_variable(self) -> bool:
@@ -188,26 +188,26 @@ class IMCField:
         self.name = el.attrib['name']
         self.abbrev = el.attrib['abbrev']
         self.type = el.attrib['type']
-        self.unit = el.attrib['unit'] if 'unit' in el.attrib.keys() else None
+        self.unit = el.attrib.get('unit', None)
         self.description = '\n'.join([x.text for x in el.findall('description') if x])
-        self.note = el.attrib['note'] if 'note' in el.attrib.keys() else None  # Rarely used
+        self.note = el.attrib.get('note', None)  # Rarely used
 
         # If type is message or message-list, this field designates which type these messages are
-        self.message_type = el.attrib['message-type'] if 'message-type' in el.attrib.keys() else None
+        self.message_type = el.attrib.get('message-type', None)
 
         # Value default / bounds
-        self.fixed = el.attrib['fixed'] if 'fixed' in el.attrib.keys() else None  # Constant value (true/false)
-        self.value = el.attrib['value'] if 'value' in el.attrib.keys() else None  # Default value
-        self.min = el.attrib['min'] if 'min' in el.attrib.keys() else None  # Min value
-        self.max = el.attrib['max'] if 'max' in el.attrib.keys() else None  # Max value
+        self.fixed = el.attrib.get('fixed', None)  # Constant value (true/false)
+        self.value = el.attrib.get('value', None)  # Default value
+        self.min = el.attrib.get('min', None)  # Min value
+        self.max = el.attrib.get('max', None)  # Max value
 
         # Defined by enum/bitfield (defined globally)
-        self.enum_def = el.attrib['enum-def'] if 'enum-def' in el.attrib.keys() else None
-        self.bitfield_def = el.attrib['bitfield-def'] if 'bitfield-def' in el.attrib.keys() else None
+        self.enum_def = el.attrib.get('enum-def', None)
+        self.bitfield_def = el.attrib.get('bitfield-def', None)
 
         # Field is defined by local enum
         self.values = [IMCValue(x) for x in el.findall('value')]
-        self.prefix = el.attrib['prefix'] if 'prefix' in el.attrib.keys() else None
+        self.prefix = el.attrib.get('prefix', None)
 
     def __repr__(self):
         return 'IMCField({}, {})'.format(self.abbrev, self.type)
@@ -262,8 +262,8 @@ class IMCEnum:
             self.name = el.attrib['name']
             self.abbrev = el.attrib['abbrev']
             self.prefix = el.attrib['prefix']
-            self.unit = el.attrib['unit'] if 'unit' in el.attrib.keys() else None
-            self.type = el.attrib['type'] if 'type' in el.attrib.keys() else None
+            self.unit = el.attrib.get('unit', None)
+            self.type = el.attrib.get('type', None)
             self.values = [IMCValue(x) for x in el.findall('value')]  # type: List[IMCValue]
 
     def is_bitfield(self):
