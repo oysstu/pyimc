@@ -413,5 +413,31 @@ class LSFExporter:
             return df
 
 
+def merge(lsf_dir, lsf_out):
+    """
+    Merge all lsf files contained in the subdirectories into a single lsf-file. The messages are sorted by timestamp.
+    :param lsf_dir: The root directory to start search for lsf files
+    :param lsf_out: The output path of the target lsf file
+    :return:
+    """
+    msgs = []
+    for root, _, fnames in os.walk(lsf_dir):
+        for fname in fnames:
+            if fname.endswith('.lsf'):
+                for msg in LSFReader.read(os.path.join(root, fname), use_index=False, save_index=False):
+                    msgs.append(msg)
+            elif fname.endswith('.lsf.gz') and not os.path.exists(os.path.join(root, fname[:-3])):
+                with open(os.path.join(root, fname), 'rb') as f:
+                    data = gzip.decompress(f.read())
+                    for msg in LSFReader.read(data, save_index=False):
+                        msgs.append(msg)
+
+    msgs.sort(key=lambda x: x.timestamp)
+
+    with open(lsf_out, 'wb') as f:
+        for msg in msgs:
+            f.write(pyimc.Packet.serialize(msg))
+
+
 if __name__ == '__main__':
     pass
