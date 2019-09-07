@@ -32,6 +32,13 @@ v{message}.def_property("{field}",
     []({message} &x, py::bytes &b){{bytes_to_vector(b, x.{field});}}, py::return_value_policy::take_ownership);
 """
 
+# C++ template for plaintext fields
+plaintext_template = """
+v{message}.def_property("{field}",
+    [](const {message} &x){{return ascii_to_unicode_safe(x.{field});}},
+    []({message} &x, std::string &s){{x.{field} = s;}}, py::return_value_policy::take_ownership);
+"""
+
 # C++ template for enumerated fields
 enumfield_template = """
 v{message}.def_property("{field}",
@@ -146,6 +153,9 @@ class IMCPybind(IMC):
                 if f.type == 'rawdata':
                     rawdata = rawdata_template.format(message=m.abbrev, field=f.abbrev.lower())
                     s.extend(['\t' + x for x in rawdata.splitlines()])
+                elif f.type == 'plaintext':
+                    plaintext = plaintext_template.format(message=m.abbrev, field=f.abbrev.lower())
+                    s.extend(['\t' + x for x in plaintext.splitlines()])
                 elif f.type == 'message':
                     inline_type = f.message_type if f.message_type else 'Message'
                     inline_message = inline_message_template.format(message=m.abbrev,
