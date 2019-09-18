@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/stl_bind.h>
 #include "generated/pbGenerated.hpp"
 
 namespace py = pybind11;

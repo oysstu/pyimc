@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar, Iterable, Union, Sequence
+from typing import Generic, TypeVar, Iterable, Union, Sequence, List
 
 ### -------- Typing for non-generated classes ---------  ###
 

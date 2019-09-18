@@ -20,12 +20,13 @@ imctype_sz = {
     # Variable fields have a minimum size of 2 bytes
     'rawdata': 2,
     'plaintext': 2,
+    'vector': 2,
     'message': 2,
     'message-list': 2
 }
 
 # IMC types that can vary in size
-variable_types = ['rawdata', 'plaintext', 'message', 'message-list']
+variable_types = ['rawdata', 'plaintext', 'message', 'message-list', 'vector']
 
 
 class IMC:
@@ -162,6 +163,7 @@ class IMCMessage:
     def is_variable(self) -> bool:
         return any([f.is_variable() for f in self.fields])
 
+
 class IMCHeader:
     """
     Header which is present for all messages (e.g dst/src addresses)
@@ -194,6 +196,9 @@ class IMCField:
 
         # If type is message or message-list, this field designates which type these messages are
         self.message_type = el.attrib.get('message-type', None)
+
+        # If type is numeric vector, this field designates which type the contained values are
+        self.vector_type = el.attrib.get('vector-type', None)
 
         # Value default / bounds
         self.fixed = el.attrib.get('fixed', None)  # Constant value (true/false)
@@ -286,6 +291,7 @@ class IMCValue:
 
     def __repr__(self):
         return 'IMCValue({}, {})'.format(self.id, self.abbrev)
+
 
 if __name__ == '__main__':
     pass

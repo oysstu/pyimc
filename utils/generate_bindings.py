@@ -52,8 +52,22 @@ class IMCPybind(IMC):
     """
     Generates python bindings for DUNE+IMC using pybind11.
     """
-    common_include = ['pybind11/pybind11.h']
+    common_include = ['pybind11/pybind11.h', 'pybind11/stl_bind.h']
     common_namespace = ['namespace py = pybind11;', 'using namespace DUNE::IMC;']
+
+    # Python naming of vector types
+    imctype_vec = {
+        'int8_t': 'VectorInt8',
+        'uint8_t': 'VectorUInt8',
+        'int16_t': 'VectorInt16',
+        'uint16_t': 'VectorUInt16',
+        'int32_t': 'VectorInt32',
+        'uint32_t': 'VectorUInt32',
+        'int64_t': 'VectorInt64',
+        'uint64_t': 'VectorUInt64',
+        'fp32_t': 'VectorFp32',
+        'fp64_t': 'VectorFp64',
+    }
 
     def __init__(self, imc_path, whitelist=None, out_dir='src/generated'):
         super().__init__(imc_path)
@@ -62,13 +76,24 @@ class IMCPybind(IMC):
         if not os.path.exists(self.odir):
             os.makedirs(self.odir)
 
+    def get_vector_types(self):
+        """
+        Iterate over IMC specification and collect all vector types
+        """
+        vec_type = []
+        for m in self.messages:
+            for f in m.fields:
+                if f.vector_type and f.vector_type not in vec_type:
+                    vec_type.append(f.vector_type)
+
+        return vec_type
+
     def write_bindings(self):
         self.write_supertypes()
         self.write_enumerations()
         self.write_bitfields()
         self.write_messages()
         self.write_generated()
-
 
     def write_supertypes(self):
         """
@@ -214,6 +239,13 @@ class IMCPybind(IMC):
         s += self.common_namespace
         s.append('')
 
+        # Write OPAQUE std::vector types
+        vec_types = self.get_vector_types()
+        for vec_type in vec_types:
+            s.append('PYBIND11_MAKE_OPAQUE(std::vector<{}>);'.format(vec_type))
+
+        s.append('')
+
         # Write forward declarations
         fnames = ['Enumerations', 'SuperTypes', 'Bitfields']
         fnames += [m.abbrev for m in self.messages if not self.whitelist or m.abbrev.lower() in self.whitelist]
@@ -227,6 +259,15 @@ class IMCPybind(IMC):
         msglst.append('Message')
         msglst = set(msglst)  # Unique entries
         s.extend(['\tpbMessageList<{0}>(m);'.format(ml) for ml in msglst])
+
+        s.append('')
+
+        # Bind std::vector opaque types to Python name
+        for vec_type in vec_types:
+            s.append('\tpy::bind_vector<std::vector<{}>> (m, "{}", py::buffer_protocol());'
+                     .format(vec_type, IMCPybind.imctype_vec[vec_type]))
+
+        s.append('')
 
         # Calls to messages
         s.extend(['\tpb{}(m);'.format(x) for x in fnames])
@@ -255,6 +296,7 @@ class IMCPyi(IMC):
         'fp64_t': 'float',
         'rawdata': 'bytes',
         'plaintext': 'str',
+        'vector': 'List',
         'message': 'Message',
         'message-list': 'MessageList'
     }
@@ -318,16 +360,22 @@ class IMCPyi(IMC):
             # Members
             for f in m.fields:
                 fabbr = f.abbrev.lower()
-                inline_type = f.message_type if f.message_type else 'Message'
+                inline_type = 'Message'
                 self.s.append('\t@property')
                 if f.type == 'message':
                     self.s.append('\tdef {0}(self) -> {1}: ...'.format(fabbr, inline_type))
                     self.s.append('\t@{}.setter'.format(fabbr))
                     self.s.append('\tdef {0}(self, {0}: {1}) -> None: ...'.format(fabbr, inline_type))
                 elif f.type == 'message-list':
+                    inline_type = f.message_type
                     self.s.append('\tdef {0}(self) -> MessageList[{1}]: ...'.format(fabbr, inline_type))
                     self.s.append('\t@{}.setter'.format(fabbr))
                     self.s.append('\tdef {0}(self, {0}: MessageList[{1}]) -> None: ...'.format(fabbr, inline_type))
+                elif f.type == 'vector':
+                    inline_type = self.imctype_pyi[f.vector_type]
+                    self.s.append('\tdef {0}(self) -> List[{1}]: ...'.format(fabbr, inline_type))
+                    self.s.append('\t@{}.setter'.format(fabbr))
+                    self.s.append('\tdef {0}(self, {0}: List[{1}]) -> None: ...'.format(fabbr, inline_type))
                 else:
                     self.s.append('\tdef {}(self) -> {}: ...'.format(fabbr, self.imctype_pyi[f.type]))
                     self.s.append('\t@{}.setter'.format(fabbr))
