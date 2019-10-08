@@ -91,10 +91,15 @@ class DynamicActor(IMCBase):
         Send a heartbeat signal to nodes specified in self.heartbeat
         """
         hb = pyimc.Heartbeat()
+        hb_sent = []
         for node_id in self.heartbeat:
             try:
                 node = self.resolve_node_id(node_id)
-                self.send(node, hb)
+
+                # Only send hb once if multiple keys resolve to same node
+                if node not in hb_sent:
+                    self.send(node, hb)
+                    hb_sent.append(node)
             except AmbiguousKeyError as e:
                 logger.exception(str(e) + '({})'.format(e.choices))
             except KeyError:
