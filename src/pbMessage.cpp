@@ -26,6 +26,9 @@ public:
     int validate(void) const override { 
         PYBIND11_OVERLOAD_PURE(int, Message, Validate); 
         }
+    bool fieldsEqual(const Message& other) const override {
+        PYBIND11_OVERLOAD_PURE(bool, Message, fieldsEqual, other);
+        }
     const char* getName(void) const override {
         PYBIND11_OVERLOAD_PURE(const char*, Message, getName); 
         }
@@ -43,12 +46,18 @@ public:
         }
 };
 
+class PyMessagePublic : public Message { // helper type for exposing protected function
+public:
+    using Message::fieldsEqual; // inherited with different access modifier
+};
+
 void pbMessage(py::module &m) {
     py::class_<Message, PyMessage>(m, "Message")
             .def(py::init<>())
             .def("clone", &Message::clone)
             .def("clear", &Message::clear)
             .def("validate", &Message::validate)
+            .def("fields_equal", &PyMessagePublic::fieldsEqual)
             .def_property_readonly("msg_name", &Message::getName)   // msg_ prefix to avoid name collision
             .def_property_readonly("msg_id", &Message::getId)       // msg_ prefix to avoid name collision
 #ifdef PYBIND11_CPP14
