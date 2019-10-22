@@ -14,6 +14,7 @@ from pyimc.decorators import Subscribe, RunOnce
 
 logger = logging.getLogger('examples.KeyboardActor')
 
+
 class KeyboardActor(DynamicActor):
     def __init__(self, target_name):
         """
@@ -63,14 +64,33 @@ class KeyboardActor(DynamicActor):
                 # Compute vehicle lat/lon
                 lat, lon, hae = pyimc.coordinates.toWGS84(self.estate)
 
-                # Start single-maneuver plan
-                pc = pyimc.PlanControl()
-                pc.op = pyimc.PlanControl.OperationEnum.START
+                # Define maneuver
                 man = pyimc.Goto()
                 man.z = 0.0
                 man.z_units = pyimc.ZUnits.DEPTH
                 man.lat, man.lon = pyimc.coordinates.WGS84.displace(lat, lon, n=100.0, e=0.0)
-                pc.arg = man
+                man.speed = 1.2
+                man.speed_units = pyimc.SpeedUnits.METERS_PS
+
+                # Add to PlanManeuver message
+                pman = pyimc.PlanManeuver()
+                pman.data = man
+                pman.maneuver_id = 'TestManeuver'
+
+                # Add to PlanSpecification
+                spec = pyimc.PlanSpecification()
+                spec.plan_id = 'TestPlan'
+                spec.maneuvers.append(pman)
+                spec.start_man_id = 'TestManeuver'
+                spec.description = 'A test plan sent from pyimc'
+
+                # Start plan
+                pc = pyimc.PlanControl()
+                pc.type = pyimc.PlanControl.TypeEnum.REQUEST
+                pc.op = pyimc.PlanControl.OperationEnum.START
+                pc.plan_id = 'TestManeuver'
+                pc.arg = spec
+
                 self.send(self.estate, pc)
         else:
             logger.error('Unknown command')
@@ -81,7 +101,6 @@ class KeyboardActor(DynamicActor):
         while True:
             if self._loop.is_closed():
                 break
-
             rd = yield from self._loop.run_in_executor(None, sys.stdin.readline)
             for line in rd.splitlines():
                 self.on_console(line.strip())
