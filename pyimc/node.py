@@ -127,6 +127,8 @@ class IMCNode:
         :param msg: The IMC message to send
         :return: 
         """
+        
+        msg.dst = self.src
 
         try:
             imcudp_services = self.services['imc+udp']
