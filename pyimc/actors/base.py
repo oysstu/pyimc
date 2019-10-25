@@ -93,6 +93,11 @@ class IMCBase:
                         except (KeyError, AttributeError):
                             self._subs[msg_type] = [method]
 
+        # Sort subscriptions by position in inheritance hierarchy (parent classes are called first)
+        cls_hier = [x.__qualname__ for x in inspect.getmro(type(self))]
+        for msg_type, methods in self._subs.items():
+            methods.sort(key=lambda x: -cls_hier.index(x.__qualname__.split('.')[0]))
+        
         # Subscriptions has been collected from all decorators
         # Add asyncio datagram endpoints to event loop
         self._start_subscriptions()
