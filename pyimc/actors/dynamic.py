@@ -1,14 +1,17 @@
 import socket
 import time
 from operator import itemgetter
+import logging
 
 import pyimc
-from pyimc.actors import IMCBase, logger
+from pyimc.actors import IMCBase
 from pyimc.common import multicast_ip
 from pyimc.decorators import Subscribe, Periodic
 from pyimc.exception import AmbiguousKeyError
 from pyimc.network.udp import IMCSenderUDP
 from pyimc.network.utils import get_interfaces
+
+logger = logging.getLogger('pyimc.actors.dynamic')
 
 
 class DynamicActor(IMCBase):
