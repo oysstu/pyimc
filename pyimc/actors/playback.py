@@ -32,13 +32,13 @@ class PlaybackActor(DynamicActor):
         self.start_time = start_time
 
         # State
-        self.t0 = None  # Time of actor start
-        self.t0_sys = {}  # Timestamp of first message from each system
+        self._t0 = None  # Time of actor start
+        self._t0_sys = {}  # Timestamp of first message from each system
 
     @RunOnce()
     @asyncio.coroutine
-    def playback(self):
-        self.t0 = time.time()
+    def _playback(self):
+        self._t0 = time.time()
 
         # Retrieve message subscription types (to skip unwanted messages)
         # LoggingControl is appended, as that is the first message (and therefore contains timestamp of local system)
@@ -47,12 +47,12 @@ class PlaybackActor(DynamicActor):
 
         for msg in LSFReader.read(self.lsf_path, types=msg_types):
             try:
-                t0_sys = self.t0_sys[msg.src]
+                t0_sys = self._t0_sys[msg.src]
             except KeyError:
-                self.t0_sys[msg.src] = msg.timestamp
+                self._t0_sys[msg.src] = msg.timestamp
 
             # Time since start of log
-            t_msg = self.t0 + msg.timestamp - self.t0_sys[msg.src]
+            t_msg = self._t0 + msg.timestamp - self._t0_sys[msg.src]
 
             if self.offset_time:
                 msg.timestamp = t_msg
@@ -60,11 +60,11 @@ class PlaybackActor(DynamicActor):
             # Optional: Skip messages until given time, except core messages
             if self.start_time and msg.timestamp < self.start_time:
                 if type(msg) is pyimc.Announce:
-                    self.recv_announce(msg)
+                    self._recv_announce(msg)
                 elif type(msg) is pyimc.EntityList:
-                    self.recv_entity_list(msg)
+                    self._recv_entity_list(msg)
                 elif type(msg) is pyimc.EntityInfo:
-                    self.recv_entity_info(msg)
+                    self._recv_entity_info(msg)
 
                 continue
 

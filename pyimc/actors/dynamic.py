@@ -37,7 +37,7 @@ class DynamicActor(IMCBase):
         self.heartbeat = []  # type: List[Union[str, int, Tuple[int, str]]]
 
     @Subscribe(pyimc.EntityList)
-    def reply_entity_list(self, msg):
+    def _reply_entity_list(self, msg):
         """
         Respond to entity list queries
         """
@@ -56,18 +56,18 @@ class DynamicActor(IMCBase):
                 logger.debug('Unable to resolve node when sending EntityList')
 
     @Periodic(30)
-    def query_entity_list(self):
+    def _query_entity_list(self):
         """
         Request entity list from nodes without one
         """
-        for k, node in self.nodes.items():
+        for k, node in self._nodes.items():
             if not node.entities:
                 q_ent = pyimc.EntityList()
                 q_ent.op = pyimc.EntityList.OperationEnum.QUERY
                 self.send(node, q_ent)
 
     @Periodic(10)
-    def send_announce(self):
+    def _send_announce(self):
         """
         Send an announce. Will use properties stored in this class (e.g self.lat, self.lon to set parameters)
         :return:
@@ -89,7 +89,7 @@ class DynamicActor(IMCBase):
             logger.debug('IMC socket not ready')  # Socket should be ready by now.
 
     @Periodic(1)
-    def send_heartbeat(self):
+    def _send_heartbeat(self):
         """
         Send a heartbeat signal to nodes specified in self.heartbeat
         """

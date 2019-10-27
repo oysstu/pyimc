@@ -29,6 +29,11 @@ class IMCBase:
         self.static_port = static_port
         self.verbose_nodes = verbose_nodes
 
+        # Overridden in subclasses
+        self.announce = None
+        self.entities = {'Daemon': 0}
+        self.services = None  # type: List[str]
+
         # Asyncio loop, tasks, and callbacks
         self._loop = None  # type: asyncio.BaseEventLoop
         self._task_mc = None  # type: asyncio.Task
@@ -40,69 +45,40 @@ class IMCBase:
         self._port_mc = None  # type: int
 
         # Using a map from (imc address, sys_name) to a node instance
-        self.nodes = {}  # type: Dict[Tuple[int, str], IMCNode]
+        self._nodes = {}  # type: Dict[Tuple[int, str], IMCNode]
 
         # Static transports
         # Adding pyimc.Message transports all messages
-        self.static_transports = {}  # type: Dict[Type[pyimc.Message], List[IMCService]]
+        self._static_transports = {}  # type: Dict[Type[pyimc.Message], List[IMCService]]
 
-        # Overridden in subclasses
-        self.announce = None
-        self.entities = {'Daemon': 0}
-        self.services = None  # type: List[str]
+    #
+    # Events
+    #
 
-    def _start_subscriptions(self):
+    def on_connect(self, node_id):
         """
-        Add asyncio datagram endpoint for all subscriptions
+        Called when a new node is added to the node map
+        :param node_id: The id of the node Tuple[imc_address, imc_name]
         """
-        # Add datagram endpoint for multicast announce
-        multicast_listener = self._loop.create_datagram_endpoint(lambda: IMCProtocolUDP(self, is_multicast=True),
-                                                                 family=socket.AF_INET)
+        raise NotImplementedError('Abstract implementation')
 
-        # Add datagram endpoint for UDP IMC messages
-        imc_listener = self._loop.create_datagram_endpoint(lambda: IMCProtocolUDP(self,
-                                                                                  is_multicast=False,
-                                                                                  static_port=self.static_port),
-                                                           family=socket.AF_INET)
-
-        if sys.version_info < (3, 4, 4):
-            self._task_mc = self._loop.create_task(multicast_listener)
-            self._task_imc = self._loop.create_task(imc_listener)
-        else:
-            self._task_mc = asyncio.ensure_future(multicast_listener)
-            self._task_imc = asyncio.ensure_future(imc_listener)
-
-    def _setup_event_loop(self):
+    def on_disconnect(self, node_id):
         """
-        Setup of event loop and decorated functions
+        Called when a new node is removed to the node map (timeout)
+        :param node_id: The id of the node Tuple[imc_address, imc_name]
         """
-        # Add event loop to instance
-        if not self._loop:
-            self._loop = asyncio.get_event_loop()
+        raise NotImplementedError('Abstract implementation')
 
-        decorated = [(name, method) for name, method in inspect.getmembers(self) if hasattr(method, '_decorators')]
-        for name, method in decorated:
-            for decorator in method._decorators:
-                decorator.add_event(self._loop, self, method)
+    def on_first_heartbeat(self, node_id):
+        """
+        Called when a new node sends its first heartbeat message (transports started)
+        :param node_id: The id of the node Tuple[imc_address, imc_name]
+        """
+        raise NotImplementedError('Abstract implementation')
 
-                if type(decorator) is Subscribe:
-                    # Collect subscribed message types for each function
-                    for msg_type in decorator.subs:
-                        try:
-                            self._subs[msg_type].append(method)
-                        except (KeyError, AttributeError):
-                            self._subs[msg_type] = [method]
-
-        # Sort subscriptions by position in inheritance hierarchy (parent classes are called first)
-        cls_hier = [x.__qualname__ for x in inspect.getmro(type(self))]
-        for msg_type, methods in self._subs.items():
-            methods.sort(key=lambda x: -cls_hier.index(x.__qualname__.split('.')[0]))
-        
-        # Subscriptions has been collected from all decorators
-        # Add asyncio datagram endpoints to event loop
-        self._start_subscriptions()
-
-        #self._loop.set_exception_handler() TODO
+    #
+    # Callable functions
+    #
 
     def stop(self):
         """
@@ -193,18 +169,18 @@ class IMCBase:
             # Type int or str: either imc name or imc id
             # Search for keys with the name or id, raise exception if not found or ambiguous
             idx = 0 if id_type is int else 1
-            possible_nodes = [x for x in self.nodes.keys() if x[idx] == node_id]
+            possible_nodes = [x for x in self._nodes.keys() if x[idx] == node_id]
             if not possible_nodes:
                 raise KeyError('Specified IMC node does not exist.')
             elif len(possible_nodes) > 1:
                 raise AmbiguousKeyError('Specified IMC node has multiple possible choices', choices=possible_nodes)
             else:
-                return self.nodes[possible_nodes[0]]
+                return self._nodes[possible_nodes[0]]
         elif id_type is tuple:
             # Type Tuple(int, str): unique identifier of both imc id and name
             # Determine the correct order of arguments
             if type(node_id[0]) is int and type(node_id[1]) is str:
-                return self.nodes[node_id]
+                return self._nodes[node_id]
             else:
                 raise TypeError('Node id tuple must be (int, str).')
         elif id_type is IMCNode:
@@ -221,7 +197,7 @@ class IMCBase:
         Add an IMC node to the map.
         :param node: The node to be added to the map. The src and sys_name properties must be set
         """
-        self.nodes[(node.src, node.sys_name)] = node
+        self._nodes[(node.src, node.sys_name)] = node
 
     def remove_node(self, key):
         """
@@ -229,7 +205,17 @@ class IMCBase:
         :param key: One of the supported key formats in resolve_node_id
         """
         node = self.resolve_node_id(key)
-        del self.nodes[(node.src, node.sys_name)]
+        del self._nodes[(node.src, node.sys_name)]
+
+    def add_static_transport(self, imc_service: IMCService, msg_types: List[Type[pyimc.Message]]):
+        """
+        Setup an outgoing static transport of the imc message types to the target imc service.
+        :param imc_service: The destination imc service (must contain imc+udp)
+        :param msg_types: A list of message types to transport
+        :return:
+        """
+        for msg_type in msg_types:
+            self._static_transports[msg_type].append(imc_service)
 
     def send_static(self, msg, set_timestamp=True):
         """
@@ -243,10 +229,10 @@ class IMCBase:
         if set_timestamp:
             msg.set_timestamp_now()
 
-        for svc in self.static_transports.get(type(msg), []):
+        for svc in self._static_transports.get(type(msg), []):
             with IMCSenderUDP(svc.ip) as s:
                 s.send(message=msg, port=svc.port)
-        for svc in self.static_transports.get(pyimc.Message, []):
+        for svc in self._static_transports.get(pyimc.Message, []):
             with IMCSenderUDP(svc.ip) as s:
                 s.send(message=msg, port=svc.port)
 
@@ -272,35 +258,71 @@ class IMCBase:
         # Send to static destinations
         self.send_static(msg)
 
-    def on_connect(self, node_id):
-        """
-        Called when a new node is added to the node map
-        :param node_id: The id of the node Tuple[imc_address, imc_name]
-        """
-        raise NotImplementedError('Abstract implementation')
+    #
+    # Private
+    #
 
-    def on_disconnect(self, node_id):
+    def _start_subscriptions(self):
         """
-        Called when a new node is removed to the node map (timeout)
-        :param node_id: The id of the node Tuple[imc_address, imc_name]
+        Add asyncio datagram endpoint for all subscriptions
         """
-        raise NotImplementedError('Abstract implementation')
+        # Add datagram endpoint for multicast announce
+        multicast_listener = self._loop.create_datagram_endpoint(lambda: IMCProtocolUDP(self, is_multicast=True),
+                                                                 family=socket.AF_INET)
 
-    def on_first_heartbeat(self, node_id):
+        # Add datagram endpoint for UDP IMC messages
+        imc_listener = self._loop.create_datagram_endpoint(lambda: IMCProtocolUDP(self,
+                                                                                  is_multicast=False,
+                                                                                  static_port=self.static_port),
+                                                           family=socket.AF_INET)
+
+        if sys.version_info < (3, 4, 4):
+            self._task_mc = self._loop.create_task(multicast_listener)
+            self._task_imc = self._loop.create_task(imc_listener)
+        else:
+            self._task_mc = asyncio.ensure_future(multicast_listener)
+            self._task_imc = asyncio.ensure_future(imc_listener)
+
+    def _setup_event_loop(self):
         """
-        Called when a new node sends its first heartbeat message (transports started)
-        :param node_id: The id of the node Tuple[imc_address, imc_name]
+        Setup of event loop and decorated functions
         """
-        raise NotImplementedError('Abstract implementation')
+        # Add event loop to instance
+        if not self._loop:
+            self._loop = asyncio.get_event_loop()
+
+        decorated = [(name, method) for name, method in inspect.getmembers(self) if hasattr(method, '_decorators')]
+        for name, method in decorated:
+            for decorator in method._decorators:
+                decorator.add_event(self._loop, self, method)
+
+                if type(decorator) is Subscribe:
+                    # Collect subscribed message types for each function
+                    for msg_type in decorator.subs:
+                        try:
+                            self._subs[msg_type].append(method)
+                        except (KeyError, AttributeError):
+                            self._subs[msg_type] = [method]
+
+        # Sort subscriptions by position in inheritance hierarchy (parent classes are called first)
+        cls_hier = [x.__qualname__ for x in inspect.getmro(type(self))]
+        for msg_type, methods in self._subs.items():
+            methods.sort(key=lambda x: -cls_hier.index(x.__qualname__.split('.')[0]))
+
+        # Subscriptions has been collected from all decorators
+        # Add asyncio datagram endpoints to event loop
+        self._start_subscriptions()
+
+        # self._loop.set_exception_handler() TODO
 
     @Periodic(65)
-    def prune_nodes(self):
+    def _prune_nodes(self):
         """
         Clear nodes that have not announced themselves or sent heartbeat in the past 60 seconds
         """
         t = time.time()
         rm_keys = []  # Avoid changes to dict during iteration
-        for key, node in self.nodes.items():
+        for key, node in self._nodes.items():
             has_heartbeat = type(node.last_heartbeat) is float and (t - node.last_heartbeat) < 60
             has_announce = node.last_announce is not None and (t - node.last_announce) < 60
             if not (has_heartbeat or has_announce) and not node.is_fixed:
@@ -318,12 +340,12 @@ class IMCBase:
                 logger.exception('Encountered exception when removing node ({})'.format(e.msg))
 
     @Periodic(10)
-    def print_connected_nodes(self):
+    def _print_connected_nodes(self):
         if self.verbose_nodes:
-            logger.debug('Connected nodes: {}'.format(list(self.nodes.keys())))
+            logger.debug('Connected nodes: {}'.format(list(self._nodes.keys())))
 
     @Subscribe(pyimc.Announce)
-    def recv_announce(self, msg):
+    def _recv_announce(self, msg):
         # TODO: Check if IP of a node changes
 
         # Return if announce originates from this ccu or on duplicate IMC id
@@ -336,10 +358,10 @@ class IMCBase:
         # Update announce
         key = (msg.src, msg.sys_name)
         try:
-            self.nodes[key].update_announce(msg)
+            self._nodes[key].update_announce(msg)
         except KeyError:
             # If the key is new, check for duplicate names/imc addresses
-            key_imcadr = [x for x in self.nodes.keys() if x[0] == key[0] or x[1] == key[1]]
+            key_imcadr = [x for x in self._nodes.keys() if x[0] == key[0] or x[1] == key[1]]
             if key_imcadr:
                 logger.warning('Multiple nodes are announcing the same IMC address or name: {} and {}'.format(key, key_imcadr))
 
@@ -352,7 +374,7 @@ class IMCBase:
                 pass
 
     @Subscribe(pyimc.Heartbeat)
-    def recv_heartbeat(self, msg):
+    def _recv_heartbeat(self, msg):
         try:
             node = self.resolve_node_id(msg)
             first_heartbeat = node.last_heartbeat is None
@@ -367,7 +389,7 @@ class IMCBase:
             logger.debug('Received heartbeat from unannounced node ({})'.format(msg.src))
 
     @Subscribe(pyimc.EntityList)
-    def recv_entity_list(self, msg):
+    def _recv_entity_list(self, msg):
         """
         Process received entity lists
         """
@@ -380,7 +402,7 @@ class IMCBase:
                 logger.debug('Unable to resolve node when updating EntityList')
 
     @Subscribe(pyimc.EntityInfo)
-    def recv_entity_info(self, msg: pyimc.EntityInfo):
+    def _recv_entity_info(self, msg: pyimc.EntityInfo):
         """
         Process entity info messages. Mostly for systems that does not announce EntityList
         """
