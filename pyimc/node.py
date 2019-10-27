@@ -2,6 +2,7 @@ import logging
 import ipaddress as ip
 from urllib.parse import urlparse
 import time
+from typing import Dict
 
 from pyimc.network.udp import IMCSenderUDP
 from pyimc.network.utils import get_interfaces
@@ -57,22 +58,33 @@ class IMCNode:
         if service_filter is None:
             service_filter = ('imc+udp',)
 
-        # Node data
-        self.src = src  # type: int
-        self.sys_name = sys_name  # type: str
-        self.last_announce = None  # type: float
-        self.services_string = None  # type: str
+        #
+        # Args
+        #
 
+        # System imc id
+        self.src = src  # type: int
+        # System imc name
+        self.sys_name = sys_name  # type: str
+        # Unparsed services string
+        self.services_string = ''  # type: str
         # Parsed services
         self.services = {}  # type: Dict[str, IMCService]
         # Parsed entities
         self.entities = {}  # type: Dict[str, int]
-        # Time of last heartbeat
-        self.last_heartbeat = None  # type: float
-
         # Node arguments
         self.service_filter = service_filter
+        # Fixed nodes are never removed from the node map (no timeout)
         self.is_fixed = is_fixed
+
+        #
+        # State
+        #
+
+        # Time of last heartbeat
+        self.t_last_heartbeat = None  # type: float
+        # Time of last announce
+        self.t_last_announce = None  # type: float
 
     @property
     def name(self):
@@ -88,7 +100,7 @@ class IMCNode:
         """
 
         # Use local time in case remote system has a different time-zone
-        self.last_announce = time.time()
+        self.t_last_announce = time.time()
 
         # Update the services
         if self.services_string != msg.services:
@@ -100,7 +112,7 @@ class IMCNode:
         Update the connection status from an heartbeat message
         """
         # Use local time in case remote system has a different time-zone
-        self.last_heartbeat = time.time()
+        self.t_last_heartbeat = time.time()
 
     def update_services(self, service_string: str):
         """

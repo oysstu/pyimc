@@ -323,8 +323,8 @@ class IMCBase:
         t = time.time()
         rm_keys = []  # Avoid changes to dict during iteration
         for key, node in self._nodes.items():
-            has_heartbeat = type(node.last_heartbeat) is float and (t - node.last_heartbeat) < 60
-            has_announce = node.last_announce is not None and (t - node.last_announce) < 60
+            has_heartbeat = type(node.t_last_heartbeat) is float and (t - node.t_last_heartbeat) < 60
+            has_announce = node.t_last_announce is not None and (t - node.t_last_announce) < 60
             if not (has_heartbeat or has_announce) and not node.is_fixed:
                 logger.info('Connection to node "{}" timed out'.format(node))
                 rm_keys.append(key)
@@ -377,7 +377,7 @@ class IMCBase:
     def _recv_heartbeat(self, msg):
         try:
             node = self.resolve_node_id(msg)
-            first_heartbeat = node.last_heartbeat is None
+            first_heartbeat = node.t_last_heartbeat is None
             node.update_heartbeat()
 
             if first_heartbeat:
