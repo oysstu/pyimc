@@ -16,7 +16,8 @@ void pbCoordinates(py::module &m) {
   // WGS84 Class
   auto wgs84 = py::class_<WGS84>(c, "WGS84");
   // WGS84::distance
-  wgs84.def_static("distance", &WGS84::distance<double, double>, "Calculate distance between two WGS-84 coordinates (ECEF)");
+  wgs84.def_static("distance", &WGS84::distance<double, double>,
+  "lat1"_a, "lon1"_a, "hae1"_a, "lat2"_a, "lon2"_a, "hae2"_a, "Calculate distance between two WGS-84 coordinates (ECEF)");
 
   // WGS84::displacement
   wgs84.def_static("displacement", [](double lat1, double lon1, float hae1,
