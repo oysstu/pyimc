@@ -5,6 +5,7 @@ Functionality related to the DUNE lsf logs.
 import io
 from io import BytesIO
 import os
+import logging
 import ctypes
 import pyimc
 import pickle
@@ -17,6 +18,9 @@ try:
     import pandas as pd
 except ModuleNotFoundError:
     pass
+
+
+logger = logging.getLogger('pyimc.lsf')
 
 
 # Re-definition of IMC Header and Footer
@@ -86,6 +90,10 @@ class LSFReader:
             self.f = open(self.lsf, mode='rb')
         elif type(self.lsf) is bytes:
             self.f = BytesIO(self.lsf)
+        elif type(self.lsf) in (io.BytesIO, io.FileIO, gzip.GzipFile):
+            self.f = self.lsf
+        else:
+            raise ValueError('LSF file must be passed as raw data (bytes), path (string) or file object.')
 
         # Attempt to read an pre-existing index file
         if type(self.lsf) is str:
@@ -427,10 +435,29 @@ def merge(lsf_dir, lsf_out):
                 for msg in LSFReader.read(os.path.join(root, fname), use_index=False, save_index=False):
                     msgs.append(msg)
             elif fname.endswith('.lsf.gz') and not os.path.exists(os.path.join(root, fname[:-3])):
-                with open(os.path.join(root, fname), 'rb') as f:
-                    data = gzip.decompress(f.read())
-                    for msg in LSFReader.read(data, save_index=False):
-                        msgs.append(msg)
+                logger.info('Merging "{}"'.format(os.path.join(root, fname)))
+
+                # Try to decompress the full file first
+                f_msgs = []
+                try:
+                    with open(os.path.join(root, fname), 'rb') as f:
+                        data = gzip.decompress(f.read())
+                        for msg in LSFReader.read(data, save_index=False):
+                            f_msgs.append(msg)
+                except EOFError:
+                    # Gzip file is missing EOF, decompress file gradually
+                    logger.warning(e)
+                    logger.info('Trying to recover messages by decompressing gradually...')
+                    try:
+                        f_msgs = []
+                        with open(os.path.join(root, fname), 'rb') as f:
+                            with gzip.GzipFile(fileobj=f, mode='rb') as gz:
+                                for msg in LSFReader.read(gz, save_index=False):
+                                    f_msgs.append(msg)
+                    except EOFError as e:
+                        pass
+
+                msgs.extend(f_msgs)
 
     msgs.sort(key=lambda x: x.timestamp)
 
