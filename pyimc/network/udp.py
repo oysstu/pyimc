@@ -59,7 +59,7 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
 
             # Send an announce immediately after socket is ready (possible speedup in transports)
             try:
-                self.instance.send_announce()
+                self.instance._send_announce()
             except AttributeError:
                 pass
 

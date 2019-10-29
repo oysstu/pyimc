@@ -7,7 +7,6 @@ namespace py = pybind11;
 // Forward declarations
 void pbMessage(py::module &);
 void pbPacket(py::module &);
-void pbParser(py::module &);
 void pbFactory(py::module &);
 void pbConstants(py::module &);
 void pbAlgorithms(py::module &);
