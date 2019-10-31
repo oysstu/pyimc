@@ -57,7 +57,11 @@ class Periodic(IMCDecoratorBase):
 
             while True:
                 last_exec = time.time()
-                (yield from fn()) if is_coroutine else fn()
+                try:
+                    (yield from fn()) if is_coroutine else fn()
+                except Exception as e:
+                    instance.on_exception(loc=fn.__qualname__, exc=e)
+
                 yield from asyncio.sleep(max(0, self.time + last_exec - time.time()))
 
         super().add_event(loop, instance, periodic_fn())
@@ -138,9 +142,11 @@ class RunOnce(IMCDecoratorBase):
         def run_once_fn():
             # If coroutine yield from else call normally
             is_coroutine = asyncio.iscoroutinefunction(fn)
-
             yield from asyncio.sleep(self.delay)
-            (yield from fn()) if is_coroutine else fn()
+            try:
+                (yield from fn()) if is_coroutine else fn()
+            except Exception as e:
+                instance.on_exception(loc=fn.__qualname__, exc=e)
 
         super().add_event(loop, instance, run_once_fn())
 

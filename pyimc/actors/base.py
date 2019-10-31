@@ -132,22 +132,24 @@ class IMCBase:
         if pyimc.Message in class_hierarchy:
             # Post message of known type
             if type(msg) is not pyimc.Message:
-                try:
+                if type(msg) in self._subs:
                     for fn in self._subs[type(msg)]:
-                        fn(msg)
-                except KeyError:
-                    pass
+                        try:
+                            fn(msg)
+                        except Exception as e:
+                            self.on_exception(loc=fn.__qualname__, exc=e)
             else:
                 # Emit warning on IMC type without bindings
                 logger.warning(
                     'Unknown IMC message received: {} ({}) from {}'.format(msg.msg_name, msg.msg_id, msg.src))
 
             # Post messages to functions subscribed to all messages (pyimc.Message)
-            try:
+            if pyimc.Message in self._subs:
                 for fn in self._subs[pyimc.Message]:
-                    fn(msg)
-            except KeyError:
-                pass
+                    try:
+                        fn(msg)
+                    except Exception as e:
+                        self.on_exception(loc=fn.__qualname__, exc=e)
         else:
             logger.warning('Received message that is not subclass of pyimc.Message: {}'.format(type(msg)))
 
@@ -258,6 +260,13 @@ class IMCBase:
         # Send to static destinations
         self.send_static(msg)
 
+    def on_exception(self, loc, exc):
+        """
+        Can be overridden in subclasses to handle uncaught exceptions in @Subscribe, @Periodic, @RunOnce functions
+        :return:
+        """
+        logger.error('Uncaught exception ({exctype}) in {loc}: {msg}'.format(loc=loc, exctype=type(exc).__qualname__, msg=exc))
+
     #
     # Private
     #
@@ -312,8 +321,6 @@ class IMCBase:
         # Subscriptions has been collected from all decorators
         # Add asyncio datagram endpoints to event loop
         self._start_subscriptions()
-
-        # self._loop.set_exception_handler() TODO
 
     @Periodic(65)
     def _prune_nodes(self):
