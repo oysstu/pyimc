@@ -133,13 +133,15 @@ class IMCNode:
     def update_entity_id(self, ent_id, ent_label):
         self.entities[ent_label] = ent_id
 
-    def send(self, msg):
+    def send(self, msg, log_fh=None):
         """
         Sends the IMC message to the node, filling in the destination
         :param msg: The IMC message to send
+        :param log_fh: File handle to open IMC message log file
         :return: 
         """
-        
+
+        # Set destination of message to IMC ID of this node
         msg.dst = self.src
 
         try:
@@ -156,7 +158,7 @@ class IMCNode:
             svc_ip = ip.ip_address(svc.ip)
             if any([svc_ip in network for network in networks]):
                 with IMCSenderUDP(svc.ip) as s:
-                    s.send(message=msg, port=svc.port)
+                    s.send(message=msg, port=svc.port, log_fh=log_fh)
                 return
 
         # If this point is reached no local interfaces has the target system in its netmask
@@ -165,7 +167,7 @@ class IMCNode:
         ports = [svc.port for svc in imcudp_services]
         with IMCSenderUDP('127.0.0.1') as s:
             for port in ports:
-                s.send(message=msg, port=port)
+                s.send(message=msg, port=port, log_fh=log_fh)
 
     def __str__(self):
         return 'IMCNode(0x{:X}, {})'.format(self.src, self.sys_name)

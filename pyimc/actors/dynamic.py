@@ -20,7 +20,6 @@ class DynamicActor(IMCBase):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.t_start = time.time()
 
         # Set initial announce details
         self.announce = pyimc.Announce()

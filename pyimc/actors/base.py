@@ -1,5 +1,8 @@
+import os
 import socket
+import datetime
 import logging
+import tempfile
 from contextlib import suppress
 import types
 
@@ -17,17 +20,21 @@ class IMCBase:
     Base class for IMC communications.
     Implements an event loop, subscriptions, IMC node bookkeeping
     """
-    def __init__(self, imc_id=0x3334, static_port=None, verbose_nodes=False):
+    def __init__(self, imc_id=0x3334, static_port=None, verbose_nodes=False, log_enable=False, log_root=None):
         """
         Initialize the IMC comms. Does not start the event loop until run() is called
         :param imc_id: The IMC address this node should operate under
         :param static_port: Optional static port to listen for IMC messages (useful if DUNE uses static transports)
         :param verbose_nodes: If true, the connected nodes are printed out every 10 seconds
+        :param log_enable: Enable logging of incoming and outgoing IMC messages (.lsf)
+        :param log_dir: Root directory for IMC logs (default: /tmp/, or equivalent)
         """
         # Arguments
         self.imc_id = imc_id
         self.static_port = static_port
         self.verbose_nodes = verbose_nodes
+        self.log_enable = log_enable
+        self.log_root = os.path.join(tempfile.gettempdir(), 'pyimc') if log_root is None else log_root
 
         # Overridden in subclasses
         self.announce = None
@@ -50,6 +57,57 @@ class IMCBase:
         # Static transports
         # Adding pyimc.Message transports all messages
         self._static_transports = {}  # type: Dict[Type[pyimc.Message], List[IMCService]]
+
+        # Runtime data
+        self.t_start = None
+        self.log_dir = None  # Log directory (subdirectory of log_root)
+        self.log_imc_fh = None  # File handle (IMC)
+        self.log_console_fh = None  # File handle (console/logging)
+        self.log_level = logging.DEBUG
+
+    #
+    # Private
+    #
+
+    def _log_start(self):
+        # Setup logging
+        dt = datetime.datetime.today()
+        dt_datestr = dt.strftime('%Y%m%d')
+        dt_timestr = dt.strftime('%H%M%S')
+        self.log_dir = os.path.join(self.log_root, self.announce.sys_name, dt_datestr, dt_timestr)
+        os.makedirs(self.log_dir, exist_ok=True)
+
+        # Console log
+        self.log_console_fh = logging.FileHandler(os.path.join(self.log_dir, 'Output.txt'))
+        self.log_console_fh.setLevel(self.log_level)
+        fmt = logging.Formatter(fmt='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%m-%d %H:%M')
+        self.log_console_fh.setFormatter(fmt)
+        logging.getLogger('').addHandler(self.log_console_fh)  # Add to root logger
+
+        # IMC message log
+        logger.info('Starting file log ({})'.format(self.log_dir))
+        self.log_imc_fh = open(os.path.join(self.log_dir, 'Data.lsf'), 'wb')
+        log_ctl = pyimc.LoggingControl()
+        log_ctl.set_timestamp_now()
+        log_ctl.src = self.announce.src
+        log_ctl.op = pyimc.LoggingControl.ControlOperationEnum.STARTED
+        log_ctl.name = dt_datestr + '/' + dt_timestr
+        self.log_imc_fh.write(log_ctl.serialize())
+
+    def _log_stop(self):
+        if self.log_imc_fh and not self.log_imc_fh.closed:
+            logger.info('Stopping file log ({})'.format(self.log_dir))
+            dt = datetime.datetime.today()
+            log_ctl = pyimc.LoggingControl()
+            log_ctl.set_timestamp_now()
+            log_ctl.src = self.announce.src
+            log_ctl.op = pyimc.LoggingControl.ControlOperationEnum.STOPPED
+            log_ctl.name = dt.strftime('%Y%m%d') + '/' + dt.strftime('%H%M%S')
+            self.log_imc_fh.write(log_ctl.serialize())
+            self.log_imc_fh.close()
+
+        if self.log_console_fh:
+            self.log_console_fh.close()
 
     #
     # Events
@@ -102,6 +160,11 @@ class IMCBase:
         """
         Starts the event loop.
         """
+        self.t_start = time.time()
+
+        if self.log_enable:
+            self._log_start()
+
         # Run setup if it hasn't been done yet
         if not self._loop:
             self._setup_event_loop()
@@ -119,6 +182,10 @@ class IMCBase:
                     self._loop.run_until_complete(task)
         finally:
             self._loop.close()
+
+            # Finish IMC log
+            if self.log_enable:
+                self._log_stop()
 
     def post_message(self, msg: pyimc.Message):
         """
@@ -255,7 +322,7 @@ class IMCBase:
             msg.set_timestamp_now()
 
         node = self.resolve_node_id(node_id)
-        node.send(msg)
+        node.send(msg, log_fh=self.log_imc_fh)
 
         # Send to static destinations
         self.send_static(msg)
