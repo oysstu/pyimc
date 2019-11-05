@@ -24,10 +24,13 @@ class IMCSenderUDP:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.sock.close()
 
-    def send(self, message, port):
+    def send(self, message, port, log_fh=None):
         if message.__module__ == '_pyimc':
             b = pyimc.Packet.serialize(message)
             self.sock.sendto(b, (self.dst, port))
+
+            if log_fh and not log_fh.closed:
+                log_fh.write(b)
         else:
             raise TypeError('Unknown message passed ({})'.format(type(message)))
 
@@ -68,6 +71,10 @@ class IMCProtocolUDP(asyncio.DatagramProtocol):
             p = pyimc.Packet.deserialize(data)
 
             if p is not None:
+                # Log IMC message to file if enabled
+                if self.instance.log_imc_fh and not self.instance.log_imc_fh.closed:
+                    self.instance.log_imc_fh.write(data)
+
                 self.instance.post_message(p)
         except RuntimeError as e:
             logger.error('Exception raised when deserializing message: {}'.format(e))
