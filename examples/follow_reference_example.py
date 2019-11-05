@@ -26,7 +26,6 @@ class FollowRef(DynamicActor):
         try:
             next_coord = self.wp[self.wp_next % len(self.wp)]
             lat, lon = pyimc.coordinates.WGS84.displace(self.lat, self.lon, n=next_coord[0], e=next_coord[1])
-            self.send_reference(node_id=self.target, lat=lat, lon=lon)
             self.wp_next += 1
 
             node = self.resolve_node_id(node_id)
@@ -78,7 +77,7 @@ class FollowRef(DynamicActor):
                 fr = pyimc.FollowReference()
                 fr.control_src = 0xFFFF  # Controllable from all IMC adresses
                 fr.control_ent = 0xFF  # Controllable from all entities
-                fr.timeout = 180.0  # Maneuver stops when time since last Reference message exceeds this value
+                fr.timeout = 10.0  # Maneuver stops when time since last Reference message exceeds this value
                 fr.loiter_radius = 0  # Default loiter radius when waypoint is reached
                 fr.altitude_interval = 0
 
@@ -145,7 +144,7 @@ class FollowRef(DynamicActor):
 
 if __name__ == '__main__':
     # Setup logging level and console output
-    logging.basicConfig(stream=sys.stderr, level=logging.INFO)
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     # Run actor
     x = FollowRef('lauv-simulator-1')
