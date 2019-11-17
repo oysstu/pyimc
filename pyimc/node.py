@@ -18,7 +18,7 @@ class IMCService:
     def from_url(service_url):
         p = urlparse(service_url)
 
-        if p.path is not '/':
+        if p.path and p.path != '/':
             param = tuple(filter(None, p.path.split('/')))
         else:
             param = None
