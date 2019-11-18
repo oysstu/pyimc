@@ -91,7 +91,7 @@ def get_multicast_socket(sock=None, static_port=None):
     if not sock:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    sock.settimeout(0.001)
+    sock.settimeout(0)
 
     # set multicast interface to any local interface
     sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton('0.0.0.0'))
@@ -141,7 +141,7 @@ def get_imc_socket(sock=None, static_port=None):
     if not sock:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    sock.settimeout(0.001)
+    sock.settimeout(0)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     if static_port is not None:
