@@ -7,14 +7,14 @@ namespace py = pybind11;
 using namespace DUNE::IMC;
 
 
-Message* pbDeserialize(py::bytes b) {
+Message* pbDeserialize(py::bytes b, Message* msg) {
     // The buffer is the internal storage of the bytes. Do not modify
     char* bfr;
     ssize_t bfr_len;
     if (PYBIND11_BYTES_AS_STRING_AND_SIZE(b.ptr(), &bfr, &bfr_len))
         py::pybind11_fail("Unable to extract bytes contents");
 
-    return DUNE::IMC::Packet::deserialize((uint8_t*)bfr, bfr_len);
+    return DUNE::IMC::Packet::deserialize((uint8_t*)bfr, bfr_len, msg);
 }
 
 py::bytes pbSerialize(const Message* msg){

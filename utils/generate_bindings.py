@@ -167,11 +167,13 @@ class IMCPybind(IMC):
                                              'DUNE/IMC/Enumerations.hpp']
             s = ['#include <{}>'.format(x) for x in include]
             s.append('#include "../pbUtils.hpp"')
+            s.append('#include "../pbPacket.hpp"')
             s += self.common_namespace
 
             s.append('\nvoid pb{}(py::module &m) {{'.format(m.abbrev))
             s.append('\tauto v{0} = py::class_<{0}, {1}>(m, "{0}", "{2}");'.format(m.abbrev, m.parent, m.name))
             s.append('\tv{}.def(py::init<>());'.format(m.abbrev))
+            s.append('\tv{0}.def("__setstate__", &pbUnpickleMessage<{0}>);'.format(m.abbrev))
 
             # Members
             for f in m.fields:

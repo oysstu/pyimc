@@ -88,5 +88,8 @@ void pbMessage(py::module &m) {
             .def_property("dst", &Message::getDestination, &Message::setDestination)
             .def_property("dst_ent", &Message::getDestinationEntity, &Message::setDestinationEntity)
             .def("serialize", &fserialize)
-            .def("serialize_fields", &fserializeFields);
+            .def("serialize_fields", &fserializeFields)
+            .def("__getstate__", [](const Message &msg) {
+                return py::make_tuple(fserialize(&msg));
+            });
 }
