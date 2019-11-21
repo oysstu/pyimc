@@ -37,7 +37,7 @@ py::bytes pbSerialize(const Message* msg){
 void pbPacket(py::module &m) {
     py::class_<Packet>(m, "Packet")
     // Note: take_ownership for instances that are already registered in pybind is referenced without "double owning"
-    .def_static("deserialize", &pbDeserialize, py::return_value_policy::take_ownership)
+    .def_static("deserialize", &pbDeserialize, py::arg("b"), py::arg("msg") = (Message*)nullptr,  py::return_value_policy::take_ownership)
     .def_static("serialize", &pbSerialize, py::return_value_policy::take_ownership);
 }
 
