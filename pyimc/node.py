@@ -153,9 +153,10 @@ class IMCNode:
 
         # Determine which service to send to based on ip/netmask
         # Note: this might not account for funky ip routing
-        networks = [ip.ip_interface(x[1] + '/' + x[2]).network for x in get_interfaces()]
+        networks = [ip.ip_interface(x[1] + '/' + x[2]).network for x in get_interfaces(ignore_local=True)]
         for svc in imcudp_services:
             svc_ip = ip.ip_address(svc.ip)
+
             if any([svc_ip in network for network in networks]):
                 with IMCSenderUDP(svc.ip) as s:
                     s.send(message=msg, port=svc.port, log_fh=log_fh)
@@ -165,8 +166,9 @@ class IMCNode:
         # Could be running on same system with no available interfaces
         # Send on loopback
         ports = [svc.port for svc in imcudp_services]
+
         with IMCSenderUDP('127.0.0.1') as s:
-            for port in ports:
+            for port in set(ports):
                 s.send(message=msg, port=port, log_fh=log_fh)
 
     def __str__(self):
