@@ -2,7 +2,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/operators.h>
 #include <DUNE/IMC/Packet.hpp>
-
+#include <DUNE/Time/Format.hpp>
+#include <string>
+#include <sstream>
+#include <algorithm>
+#include <iomanip>
 
 namespace py = pybind11;
 using namespace DUNE::IMC;
@@ -67,6 +71,30 @@ py::bytes fserializeFields(const Message* msg){
     return py::bytes(reinterpret_cast<const char*>(buf), static_cast<size_t>(sz));
 };
 
+std::string messageToString(const Message &msg) {
+    std::ostringstream os;
+    os << msg.getName() << std::endl;
+    os << std::setfill('0') << std::uppercase << std::hex;
+    os << std::setw(4) << msg.getSource() << ":";
+    os << std::setw(2) << static_cast<uint16_t>(msg.getSourceEntity()) << " -> ";
+    os << std::setw(4) << msg.getDestination() << ":";
+    os << std::setw(2) << static_cast<uint16_t>(msg.getDestinationEntity());
+    os << std::nouppercase << std::dec;
+
+    if(msg.getTimeStamp() > 0.0)
+        os << std::endl << DUNE::Time::Format::getTimeDate(msg.getTimeStamp());
+
+    msg.fieldsToJSON(os, 4);
+    std::string s = os.str();
+    s.erase(std::remove_if(s.begin(), s.end(), [](const char& c) {
+            return c == ',' || c == '"';
+        }), s.end());
+
+    return s;
+};
+
+
+
 void pbMessage(py::module &m) {
     py::class_<Message, PyMessage>(m, "Message")
             .def(py::init<>())
@@ -91,5 +119,6 @@ void pbMessage(py::module &m) {
             .def("serialize_fields", &fserializeFields)
             .def("__getstate__", [](const Message &msg) {
                 return py::make_tuple(fserialize(&msg));
-            });
+            })
+            .def("__str__", &messageToString);
 }
