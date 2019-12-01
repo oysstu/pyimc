@@ -51,6 +51,21 @@ class IMC:
         self.flags = []
 
         self.parse(imc_path)
+        self.validate()
+
+    def validate(self):
+        # Check that all message ids are unique
+        mgids = set()
+        abbrevs = set()
+        for m in self.messages:
+            if m.id in mgids:
+                raise ValueError('Not all IMC message ids are unique ({} - {}).'.format(m.name, m.id))
+
+            if m.abbrev in abbrevs:
+                raise ValueError('Not all IMC message abbreviations are unique ({} - {}).'.format(m.name, m.abbrev))
+
+            mgids.add(m.id)
+            abbrevs.add(m.abbrev)
 
     def parse(self, imc_path):
         tree = ET.parse(imc_path)
