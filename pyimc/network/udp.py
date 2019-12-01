@@ -142,7 +142,7 @@ def get_imc_socket(sock=None, static_port=None):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     sock.settimeout(0)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 0)
 
     if static_port is not None:
         # Use specific port
@@ -150,7 +150,7 @@ def get_imc_socket(sock=None, static_port=None):
             sock.bind(('0.0.0.0', static_port))
         except OSError:
             # Socket already in use without SO_REUSEADDR enabled
-            raise RuntimeError('The IMC port specified is already in use ({}).'.format(port))
+            raise RuntimeError('The static IMC port specified is already in use ({}).'.format(static_port))
     else:
         # Try ports in the typical IMC/DUNE range
         port = None
