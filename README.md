@@ -36,16 +36,3 @@ Look at minimal_whitelist.cfg for a set of messages that should always be includ
 
 #### Recommendations
 - The pyimc library generates stub files for the bindings, meaning that you can have autocomplete and static type checking if your IDE supports them. This can for example be [PyCharm](https://www.jetbrains.com/pycharm/) or [Jedi](https://github.com/davidhalter/jedi)-based editors.
-
-
-#### TODO
-
-##### Features
-- Implement convenience functions for controlling an agent
-- Improve networking. Currently the first one is used if a node announces several udp+imc protocols
-
-##### Bugs/issues
-
-##### Testing
-- Loss of network interface
-- Loss of connectivity
