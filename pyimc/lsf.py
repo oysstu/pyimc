@@ -13,6 +13,7 @@ import heapq
 import gzip
 import warnings
 from typing import List, Dict, Union, Iterable, Type, Tuple
+import inspect
 
 try:
     import pandas as pd
@@ -189,6 +190,10 @@ class LSFReader:
 
         return len(self.idx[pyimc.Factory.id_from_abbrev(msg_type.__name__)])
 
+    def count_messages(self):
+        """ Returns a dictionary of all message types with their counts """
+        return {type(pyimc.Factory.produce(k)): len(v) for k, v in self.idx.items() if type(k) is int}
+
     def sorted_idx_iter(self, types: List[int]) -> Iterable[int]:
         """
         Returns an iterator of file positions sorted by file position (across different message types)
@@ -360,13 +365,24 @@ class LSFExporter:
             if type(value).__qualname__.startswith('MessageList'):
                 sub_msgs = list(value)
                 if not sub_msgs or skip_lists:
+                    d.append('MessageList<{}>'.format(type(sub_msgs[0]).__qualname__ if sub_msgs else 'Empty'))
                     continue
 
                 sub_fields = [k for k, v in type(sub_msgs[0]).__dict__.items() if type(v).__qualname__ == 'property']
                 d.append([self.extract_fields(x, sub_fields) for x in value])
             else:
-                # Cast enumerations to int
-                d.append(int(value) if hasattr(value, '__members__') else value)
+                if hasattr(value, '__members__'):
+                    # Cast enumeration to int
+                    d.append(int(value))
+                elif pyimc.Message in inspect.getmro(type(value)):
+                    # Inline message, handle the same way as lists
+                    if skip_lists:
+                        d.append('InlineMessage<' + type(value).__qualname__ + '>')
+                    else:
+                        sub_fields = [k for k, v in type(value).__dict__.items() if type(v).__qualname__ == 'property']
+                        d.append([self.extract_fields(value, sub_fields, skip_lists=skip_lists)])
+                else:
+                    d.append(value)
 
         return d
 
@@ -464,6 +480,38 @@ def merge(lsf_dir, lsf_out):
     with open(lsf_out, 'wb') as f:
         for msg in msgs:
             f.write(pyimc.Packet.serialize(msg))
+
+
+def dump_messages(lsf_path, out_path, fmt: Union[str, List[str]], skip_lists=True):
+    """
+    Dumps all messages in the target file to the target directory in a specified format
+    :param lsf_path: The path to the input LSF file
+    :param odir: The output directory of the output messages
+    :param fmt: The output format of each message ('csv' / 'json')
+    :param skip_lists: Skip fields containing MessageList (works poorly in a tabular format)
+    :return:
+    """
+    fmts = fmt if type(fmt) in (list, tuple) else [fmt]
+    exp = LSFExporter(lsf_path, save_index=False)
+    msg_counts = exp.lsf_reader.count_messages()
+
+    # Create output dir
+    os.makedirs(out_path, exist_ok=True)
+
+    for msg_type in msg_counts.keys():
+        print('Processing {}...'.format(msg_type.__qualname__))
+        df = exp.export_messages(imc_type=msg_type, skip_lists=skip_lists)
+
+        # Convert binary fields to string (ignoring non-valid ascii)
+        if len(df) > 0:
+            for col in df.columns:
+                if type(df[col][0]) is bytes:
+                    df[col] = df[col].apply(lambda x: x.decode('ascii', errors='replace'))
+
+        if 'csv' in fmts:
+            df.to_csv(os.path.join(out_path, msg_type.__qualname__ + '.csv'))
+        if 'json' in fmts:
+            df.to_json(os.path.join(out_path, msg_type.__qualname__ + '.json'))
 
 
 if __name__ == '__main__':
