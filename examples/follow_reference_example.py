@@ -113,6 +113,9 @@ class FollowRef(DynamicActor):
 
     @Subscribe(pyimc.FollowRefState)
     def recv_followrefstate(self, msg: pyimc.FollowRefState):
+        if not self.is_from_target(msg):
+            return
+
         logger.info('Received FollowRefState')
         self.state = msg.state
 
