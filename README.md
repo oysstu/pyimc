@@ -22,9 +22,7 @@ simply add a folder called dune or imc, respectively, in the top folder. They wi
 python3 setup.py install
 ```
 
-If you use the system python and only want to install for a single user, you can add --user to the install command without needing administrator rights.
-
-
+If you use the system python and only want to install for a single user, you can add --user to the install command without needing administrator rights. On Windows, the Windows SDK must be installed with Visual Studio and the CMake executable must be on the system PATH.
 
 ###### (Optional) Only generate bindings for a subset of IMC messages
 A config file named whitelist.cfg can be placed in the root folder to
