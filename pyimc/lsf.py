@@ -432,7 +432,9 @@ class LSFExporter:
                     if hasattr(val, '__xor__'):
                         pass
                     else:
-                        df[field_name] = pd.Categorical.from_codes(df[field_name], list(val.__members__.keys()))
+                        cat_rev = {int(v): k for k, v in val.__members__.items()}
+                        cat_str = [cat_rev[v] if v in cat_rev else 'UNKNOWN' for v in range(max(cat_rev.keys())+1)]
+                        df[field_name] = pd.Categorical.from_codes(df[field_name].values, cat_str)
 
             return df
 
