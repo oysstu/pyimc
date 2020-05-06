@@ -350,12 +350,13 @@ class LSFExporter:
             except KeyError:
                 pass
 
-    def extract_fields(self, msg, msg_fields, skip_lists=False):
+    def extract_fields(self, msg, msg_fields, skip_lists=False, skip_binary=False):
         """
         Extracts the fields given in msg_fields from the message object
         :param msg: The message object to extract the fields from
         :param msg_fields: The message fields to extract
         :param skip_lists: Skips MessageList types (works poorly with a tabular structure)
+        :param skip_binary: Skip fields with binary content
         :return:
         """
         d = []
@@ -381,16 +382,19 @@ class LSFExporter:
                     else:
                         sub_fields = [k for k, v in type(value).__dict__.items() if type(v).__qualname__ == 'property']
                         d.append([self.extract_fields(value, sub_fields, skip_lists=skip_lists)])
+                elif skip_binary and type(value) is bytes:
+                    d.append('<binary>')
                 else:
                     d.append(value)
 
         return d
 
-    def export_messages(self, imc_type: Type[pyimc.Message], skip_lists=False, condition=None) -> pd.DataFrame:
+    def export_messages(self, imc_type: Type[pyimc.Message], skip_lists=False, skip_binary=False, condition=None) -> pd.DataFrame:
         """
         Export the messages of the target imc type from the LSF file as a pandas.DataFrame
         :param imc_type: The pyimc type of the target message (e.g. pyimc.EstimatedState)
         :param skip_lists: Skips MessageList types (works poorly with a tabular structure)
+        :param skip_binary: Skip fields with binary content (e.g. sidescan-data)
         :param condition: Only export messages where the given lambda expression evaluates to True (lambda(msg))
         :return:
         """
@@ -407,7 +411,7 @@ class LSFExporter:
                 msg_data = [msg.timestamp, self.get_node_name(msg.src), self.get_entity(msg.src, msg.src_ent),
                             self.get_node_name(msg.dst), self.get_entity(msg.dst_ent, msg.dst_ent)]
 
-                msg_data.extend(self.extract_fields(msg, msg_fields, skip_lists))
+                msg_data.extend(self.extract_fields(msg, msg_fields, skip_lists, skip_binary))
 
                 if imc_type is pyimc.EstimatedState:
                     extra.append(pyimc.coordinates.toWGS84(msg))
@@ -484,13 +488,14 @@ def merge(lsf_dir, lsf_out):
             f.write(pyimc.Packet.serialize(msg))
 
 
-def dump_messages(lsf_path, out_path, fmt: Union[str, List[str]], skip_lists=True):
+def dump_messages(lsf_path, out_path, fmt: Union[str, List[str]], skip_lists=True, skip_binary=False):
     """
     Dumps all messages in the target file to the target directory in a specified format
     :param lsf_path: The path to the input LSF file
-    :param odir: The output directory of the output messages
+    :param out_path: The output directory of the output messages
     :param fmt: The output format of each message ('csv' / 'json')
     :param skip_lists: Skip fields containing MessageList (works poorly in a tabular format)
+    :param skip_binary: Skip fields with binary content
     :return:
     """
     fmts = fmt if type(fmt) in (list, tuple) else [fmt]
@@ -502,7 +507,7 @@ def dump_messages(lsf_path, out_path, fmt: Union[str, List[str]], skip_lists=Tru
 
     for msg_type in msg_counts.keys():
         print('Processing {}...'.format(msg_type.__qualname__))
-        df = exp.export_messages(imc_type=msg_type, skip_lists=skip_lists)
+        df = exp.export_messages(imc_type=msg_type, skip_lists=skip_lists, skip_binary=skip_binary)
 
         # Convert binary fields to string (ignoring non-valid ascii)
         if len(df) > 0:
