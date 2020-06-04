@@ -27,7 +27,7 @@ If you use the system python and only want to install for a single user, you can
 ###### (Optional) Only generate bindings for a subset of IMC messages
 A config file named whitelist.cfg can be placed in the root folder to
 only create bindings for a subset of the IMC messages. This can be necessary when compiling on
-embedded systems, as the linker comsumes much memory for the full message set.
+embedded systems, as the linker consumes much memory for the full message set.
 If an unknown message is parsed, it will be returned as the Message baseclass rather than a specialized message.
 Look at minimal_whitelist.cfg for a set of messages that should always be included.
 
