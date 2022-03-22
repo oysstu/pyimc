@@ -96,14 +96,15 @@ class KeyboardActor(DynamicActor):
             logger.error('Unknown command')
 
     @RunOnce()
-    @asyncio.coroutine
-    def aio_readline(self):
-        while True:
-            if self._loop.is_closed():
-                break
-            rd = yield from self._loop.run_in_executor(None, sys.stdin.readline)
-            for line in rd.splitlines():
-                self.on_console(line.strip())
+    async def aio_readline(self):
+        try:
+            while True:
+                # TODO: this causes the stop() function to hang, as run_in_executor is not cancelled
+                rd = await self._loop.run_in_executor(None, sys.stdin.readline)
+                for line in rd.splitlines():
+                    self.on_console(line.strip())
+        except RuntimeError:
+            pass
 
 
 if __name__ == '__main__':

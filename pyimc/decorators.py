@@ -11,23 +11,21 @@ from typing import Dict, List, Tuple, Type, Union
 
 
 class IMCDecoratorBase:
+    """
+    Base class for pyimc decorators
+    """
     def add_event(self, loop, instance, fn):
-        # Implements adding event to event loop
-        # Ensure future was introduced in 3.4.4
-        if sys.version_info < (3, 4, 4):
-            recv_task0 = loop.create_task(fn)
-        else:
-            recv_task0 = asyncio.ensure_future(fn)
-
-        return recv_task0
-
+        """
+        Add event to the asyncio event loop
+        """
+        return asyncio.ensure_future(fn, loop=loop)
 
 class Periodic(IMCDecoratorBase):
     """
     Calls the decorated function every N seconds
     """
-    def __init__(self, time: Union[int, float]):
-        self.time = time
+    def __init__(self, dt: Union[int, float]):
+        self.dt = dt
 
     def __call__(self, fn, *args, **kwargs):
         try:
@@ -50,19 +48,18 @@ class Periodic(IMCDecoratorBase):
         n_required_args = n_args - (len(argspec.defaults) if argspec.defaults else 0)
         assert n_required_args == 0, 'Functions decorated with @Periodic cannot have any required parameters.'
 
-        @asyncio.coroutine
-        def periodic_fn():
-            # If coroutine yield from else call normally
+        async def periodic_fn():
+            # If coroutine await else call normally
             is_coroutine = asyncio.iscoroutinefunction(fn)
 
             while True:
                 last_exec = time.time()
                 try:
-                    (yield from fn()) if is_coroutine else fn()
+                    (await fn()) if is_coroutine else fn()
                 except Exception as e:
                     instance.on_exception(loc=fn.__qualname__, exc=e)
 
-                yield from asyncio.sleep(max(0, self.time + last_exec - time.time()))
+                await asyncio.sleep(max(0, self.dt + last_exec - time.time()))
 
         super().add_event(loop, instance, periodic_fn())
 
@@ -81,7 +78,7 @@ class Subscribe(IMCDecoratorBase):
                 except AttributeError:
                     self.subs = [arg]
             else:
-                raise TypeError('Unknown message passed ({})'.format(arg))
+                raise TypeError(f'Unknown message passed ({arg})')
 
     def __call__(self, fn, *args, **kwargs):
         try:
@@ -138,13 +135,12 @@ class RunOnce(IMCDecoratorBase):
         n_required_args = n_args - (len(argspec.defaults) if argspec.defaults else 0)
         assert n_required_args == 0, 'Functions decorated with @Periodic cannot have any required parameters.'
 
-        @asyncio.coroutine
-        def run_once_fn():
-            # If coroutine yield from else call normally
+        async def run_once_fn():
+            # If coroutine await else call normally
             is_coroutine = asyncio.iscoroutinefunction(fn)
-            yield from asyncio.sleep(self.delay)
+            await asyncio.sleep(self.delay)
             try:
-                (yield from fn()) if is_coroutine else fn()
+                (await fn()) if is_coroutine else fn()
             except Exception as e:
                 instance.on_exception(loc=fn.__qualname__, exc=e)
 

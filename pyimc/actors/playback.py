@@ -36,8 +36,7 @@ class PlaybackActor(DynamicActor):
         self._t0_sys = {}  # Timestamp of first message from each system
 
     @RunOnce()
-    @asyncio.coroutine
-    def _playback(self):
+    async def _playback(self):
         self._t0 = time.time()
 
         # Retrieve message subscription types (to skip unwanted messages)
@@ -71,7 +70,7 @@ class PlaybackActor(DynamicActor):
             # Sleep until message should be posted
             # Also important to give CPU time to other tasks
             t_sleep = (t_msg - time.time())/self.speed if self.speed > 0 else 0
-            yield from asyncio.sleep(max(0, t_sleep))
+            await asyncio.sleep(max(0, t_sleep))
 
             # Post message to actor
             self.post_message(msg)
