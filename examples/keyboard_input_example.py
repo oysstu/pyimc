@@ -100,6 +100,8 @@ class KeyboardActor(DynamicActor):
         try:
             while True:
                 # TODO: this causes the stop() function to hang, as run_in_executor is not cancelled
+                #       and waits for the next keyboard input before returning. Consider using
+                #       the aioconsole package instead.
                 rd = await self._loop.run_in_executor(None, sys.stdin.readline)
                 for line in rd.splitlines():
                     self.on_console(line.strip())

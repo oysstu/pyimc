@@ -143,17 +143,17 @@ class IMCBase:
         Cancels all running tasks and stops the event loop.
         :return:
         """
-        logger.info('Stop called by user. Cancelling all running tasks.')
-        pending = asyncio.all_tasks(self._loop)
-        for task in pending:
-            task.cancel()
-            # Now we should await task to execute it's cancellation.
-            # Cancelled task raises asyncio.CancelledError that we can suppress when canceling
-            with suppress(asyncio.CancelledError):
-                self._loop.run_until_complete(task)
+        loop = self._loop
 
-        logger.info('Tasks cancelled. Stopping event loop.')
-        self._loop.stop()
+        logger.info('Stop called by user. Cancelling all running tasks.')
+        for task in asyncio.all_tasks(loop):
+            task.cancel()
+
+        async def exit_event_loop():
+            logger.info('Tasks cancelled. Stopping event loop.')
+            loop.stop()
+
+        asyncio.ensure_future(exit_event_loop())
 
     def run(self):
         """
@@ -172,7 +172,13 @@ class IMCBase:
         try:
             self._loop.run_forever()
         except KeyboardInterrupt:
-            self.stop()
+            pending = asyncio.all_tasks(self._loop)
+            for task in pending:
+                task.cancel()
+                # Now we should await task to execute it's cancellation.
+                # Cancelled task raises asyncio.CancelledError that we can suppress when canceling
+                with suppress(asyncio.CancelledError):
+                    self._loop.run_until_complete(task)
         finally:
             self._loop.close()
 
