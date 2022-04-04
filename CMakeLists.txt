@@ -1,9 +1,12 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.8)
 
 SET(PROJ_NAME _pyimc)
 project(${PROJ_NAME})
 
 add_subdirectory(pybind11)
+
+# Set CXX standard to 17
+target_compile_features(${PROJ_NAME} PRIVATE cxx_std_17)
 
 #######################################################
 ##                     DUNE                          ##
