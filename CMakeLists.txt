@@ -3,12 +3,12 @@ cmake_minimum_required(VERSION 3.0)
 SET(PROJ_NAME _pyimc)
 project(${PROJ_NAME})
 
-add_subdirectory(pybind11)
-
 # Set CXX standard to 17
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ version selection")
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+add_subdirectory(pybind11)
 
 #######################################################
 ##                     DUNE                          ##
