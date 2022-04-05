@@ -4,11 +4,45 @@ on: [workflow_dispatch]
 
 jobs:
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        # Windows 64bit
+        - os: windows-2019
+          python: 38
+          bitness: 64
+          platform_id: win_amd64
+        - os: windows-latest
+          python: 310
+          bitness: 64
+          platform_id: win_amd64
+
+        # Linux x86_64 manylinux2014
+        - os: ubuntu-latest
+          python: 38
+          bitness: 64
+          platform_id: manylinux_x86_64
+          manylinux_image: manylinux2014
+        - os: ubuntu-latest
+          python: 310
+          bitness: 64
+          platform_id: manylinux_x86_64
+          manylinux_image: manylinux2014
+
+        # Linux aarch64 manylinux2014
+        - os: ubuntu-latest
+          python: 38
+          bitness: 64
+          platform_id: manylinux_aarch64
+          manylinux_image: manylinux2014
+        - os: ubuntu-latest
+          python: 310
+          bitness: 64
+          platform_id: manylinux_aarch64
+          manylinux_image: manylinux2014
+
+    name: Build wheel for cp${{ matrix.python }}-${{ matrix.platform_id }}-${{ matrix.manylinux_image }}
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v3
@@ -30,7 +64,10 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.4.0
         env:
-          CIBW_ARCHS_LINUX: x86_64 aarch64
+          CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.platform_id }}
+          CIBW_ARCHS: all
+          CIBW_MANYLINUX_X86_64_IMAGE: ${{ matrix.manylinux_image }}
+          CIBW_BUILD_VERBOSITY: 1
 
       - uses: actions/upload-artifact@v2
         with:
