@@ -57,24 +57,11 @@ class CMakeBuild(build_ext):
 
         # Check for dune
         if not os.path.isdir('dune'):
-            # Download from LSTS master
-            print('Dune not found. Downloading from LSTS git master.')
-            dune_master_req = urllib.request.urlopen('https://github.com/LSTS/dune/archive/master.zip')
-            dune_master = dune_master_req.read()
-            with zipfile.ZipFile(io.BytesIO(dune_master), 'r') as z:
-                z.extractall()
-                shutil.move('dune-master', 'dune')
+            raise RuntimeError('Dune not found. Repository not cloned with --recursive?.')
 
         # Check for IMC definition
         if not (os.path.isfile('imc/IMC.xml') or os.path.isfile('IMC/IMC.xml')):
-            print('IMC specification not found. Downloading from LSTS git master.')
-
-            # Download from LSTS master
-            imc_master_req = urllib.request.urlopen('https://github.com/LSTS/imc/archive/master.zip')
-            imc_master = imc_master_req.read()
-            with zipfile.ZipFile(io.BytesIO(imc_master), 'r') as z:
-                z.extractall()
-                shutil.move('imc-master', 'imc')
+            raise RuntimeError('IMC specification not found. Repository not cloned with --recursive?.')
 
         # Copy IMC to cmake build folder (to generate dune definitions)
         imc_dir = 'imc' if os.path.isfile('imc/IMC.xml') else 'IMC'

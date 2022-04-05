@@ -144,6 +144,4 @@ CTestTestfile.cmake
 # Generated source files
 src/generated
 
-# IMC/DUNE repos
-dune
-imc
+
