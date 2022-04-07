@@ -1,3 +1,5 @@
+# Archived: this project has been moved to [imcpy](https://www.github.com/oysstu/imcpy) due to a naming conflict with another project on pypi. The new project contains pre-compiled wheels for Linux (x86_64, aarcht64) and Windows for the last three versions of CPython.
+
 # pyimc
 Python bindings for [Inter-Module Communication Protocol (IMC)](https://lsts.fe.up.pt/toolchain/imc) used to communicate between modules in the [LSTS toolchain](https://lsts.fe.up.pt/).
 
